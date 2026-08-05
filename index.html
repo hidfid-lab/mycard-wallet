@@ -7,14 +7,13 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <!-- 引入 QRCode 產生器套件 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         :root {
             --bg-color: #121212;
             --card-bg: #1e1e1e;
-            --primary: #ef4444; /* MyCard 紅色系 */
+            --primary: #ef4444;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
@@ -47,7 +46,6 @@
             font-weight: 800;
         }
 
-        /* 統計面板 */
         .stats-panel {
             background-color: var(--card-bg);
             padding: 12px;
@@ -68,12 +66,11 @@
             color: #34d399;
         }
 
-        /* 相機畫面與掃描區域 */
         .camera-wrapper {
             position: relative;
             width: 100%;
             max-width: 480px;
-            height: 280px;
+            height: 300px;
             margin: 0 auto 12px auto;
             border-radius: 12px;
             overflow: hidden;
@@ -92,7 +89,6 @@
             object-fit: cover !important;
             width: 100% !important;
             height: 100% !important;
-            filter: contrast(1.2) brightness(1.02);
         }
 
         .laser-line {
@@ -130,12 +126,9 @@
         .status-tag {
             padding: 2px 6px;
             border-radius: 4px;
-            background: #374151;
-            font-weight: bold;
-        }
-        .status-tag.ok {
             background: #10b981;
             color: white;
+            font-weight: bold;
         }
 
         .toast-notify {
@@ -155,7 +148,6 @@
             display: none;
         }
 
-        /* 控制面板 */
         .panel-card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -213,7 +205,6 @@
             font-size: 0.9rem;
         }
 
-        /* 按鈕群組 */
         .main-btn-group {
             display: flex;
             gap: 8px;
@@ -293,7 +284,6 @@
             min-height: 20px;
         }
 
-        /* 資料夾與卡片樣式 */
         .folder-tabs-grid {
             display: flex;
             flex-wrap: wrap;
@@ -397,7 +387,6 @@
             margin-left: 6px;
         }
 
-        /* 卡片內容排版：左側資訊與密碼，右側 QR Code */
         .card-content-grid {
             display: flex;
             gap: 12px;
@@ -445,7 +434,6 @@
             height: 100px !important;
         }
 
-        /* 用戶指定的紅色警語 */
         .custom-warning-text {
             color: #ff4d4d;
             font-size: 0.78rem;
@@ -480,7 +468,6 @@
             color: white;
         }
 
-        /* 工作日誌面板 */
         .hud-console {
             background: #111827;
             color: #10b981;
@@ -501,7 +488,6 @@
         <h1>💳 MyCard 智慧點數皮夾</h1>
     </div>
 
-    <!-- 統計面板 -->
     <div class="stats-panel">
         <div class="stat-item">
             <div>有效卡片數</div>
@@ -513,7 +499,6 @@
         </div>
     </div>
 
-    <!-- 1、2 選擇面額與啟動連續鏡頭掃描 -->
     <div class="panel-card">
         <div class="section-label" style="cursor: default;">1. 選擇本次掃描點數面額</div>
         <div class="option-group" id="denomGroup">
@@ -534,11 +519,10 @@
         </div>
     </div>
 
-    <!-- 相機畫面區 -->
     <div class="camera-wrapper" id="cameraWrapper">
         <div class="laser-line" id="laserLine"></div>
         <div class="status-tracker">
-            <span id="scanTag" class="status-tag">請將鏡頭對準 MyCard 刮開後的 QR Code</span>
+            <span id="scanTag" class="status-tag">請將鏡頭對準 QR Code 進行掃描</span>
         </div>
         <div class="toast-notify" id="toastNotify">
             <span id="toastMsg">🎉 點數卡成功入庫</span>
@@ -548,13 +532,11 @@
 
     <div id="scan-status"></div>
 
-    <!-- 工具按鈕區 -->
     <div class="tool-btn-group">
         <button class="clean-btn" onclick="removeDuplicateCards()">🧹 一鍵清除本機重複卡片</button>
         <button class="sync-btn" onclick="syncUnsentCardsToGoogleSheets()">📤 智慧同步至 Google 表單</button>
     </div>
 
-    <!-- 3、卡片收納資料夾 -->
     <div class="panel-card">
         <div class="section-label" onclick="toggleFolderPanel()">
             <span>📁 3、MyCard 卡片收納資料夾</span>
@@ -571,7 +553,6 @@
         </div>
     </div>
 
-    <!-- 4、工作日誌面板 -->
     <div class="panel-card">
         <div class="section-label" style="color: var(--text-sub); cursor: default;">4、工作日誌面板：</div>
         <div class="hud-console" id="hudConsole">
@@ -579,24 +560,22 @@
         </div>
     </div>
 
-    <!-- 一鍵清除本機所有卡片 -->
     <button class="deleteAll-btn" onclick="deleteAllCardsEver()">💥 5、一鍵清除本機所有卡片</button>
 
     <script>
-        // 全域狀態變數
         let currentDenom = 100;
         let currentFolder = 'all';
 
         let html5QrcodeScanner = null;
         let isProcessing = false;
         let isCoolingDown = false;
-        const COOLDOWN_MS = 2500; // 成功掃描後的冷卻時間
+        const COOLDOWN_MS = 2500; 
 
         let lastScanTimestamp = 0;
         const SCAN_THROTTLE_MS = 150;
 
         const STORAGE_KEY = 'mycard_point_cards_v1';
-        const GOOGLE_SCRIPT_URL = ""; // 可填入你的 Google Apps Script 部署網址
+        const GOOGLE_SCRIPT_URL = ""; 
 
         function log(msg) {
             const consoleEl = document.getElementById('hudConsole');
@@ -662,7 +641,6 @@
             }
         }
 
-        // 音效提示
         function playSuccessBeep() {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             try {
@@ -689,7 +667,6 @@
             } catch (e) {}
         }
 
-        // 啟動相機
         async function startCamera() {
             log("► 啟動連續相機掃描 QR Code...");
             if (typeof Html5Qrcode === 'undefined') {
@@ -708,13 +685,18 @@
                     html5QrcodeScanner = new Html5Qrcode("reader");
                 }
 
+                // 優化參數：擴大掃描範圍並強制開啟高畫質與自動對焦
                 const config = { 
                     fps: 30, 
-                    qrbox: { width: 220, height: 220 },
+                    qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        let minSize = Math.min(viewfinderWidth, viewfinderHeight);
+                        return { width: Math.floor(minSize * 0.75), height: Math.floor(minSize * 0.75) };
+                    },
                     videoConstraints: {
                         facingMode: "environment",
-                        width: { min: 1280, ideal: 1920 },
-                        height: { min: 720, ideal: 1080 }
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        advanced: [{ focusMode: "continuous" }]
                     }
                 };
 
@@ -724,7 +706,7 @@
                     onScanSuccess,
                     () => {}
                 );
-                log("📷 鏡頭已啟動！請將 QR Code 對準掃描框");
+                log("📷 鏡頭已啟動並開啟自動對焦！");
             } catch (err) {
                 log("❌ 開啟鏡頭失敗: " + err);
                 alert("相機開啟失敗！請確認已授權相機權限且為 HTTPS 環境。");
@@ -746,7 +728,6 @@
             isCoolingDown = false;
         }
 
-        // 解析 QR Code 內容：格式範例 [MyCard]|FTUJAA010218|LTUC457UVGXV
         function parseMyCardQRCode(text) {
             let cleanText = text.trim();
             let parts = cleanText.split('|');
@@ -757,7 +738,6 @@
                     password: parts[2].trim()
                 };
             }
-            // 若格式不同但包含資料，退回到整體比對
             return {
                 raw: cleanText,
                 cardNo: cleanText,
@@ -828,7 +808,7 @@
                 isProcessing = false;
                 document.getElementById('toastNotify').style.display = 'none';
                 if (laser) laser.style.display = 'block';
-                if (scanTag) { scanTag.innerText = '請將鏡頭對準 MyCard 刮開後的 QR Code'; scanTag.className = 'status-tag ok'; }
+                if (scanTag) { scanTag.innerText = '請將鏡頭對準 QR Code 進行掃描'; scanTag.className = 'status-tag'; }
                 log("✨ 冷卻完畢，準備接收下一張卡片！");
             }, COOLDOWN_MS);
         }
@@ -929,7 +909,7 @@
                 alert("尚未設定 Google Script 部署網址！");
                 return;
             }
-            alert("正在連線至 Google 表單同步...(可依需求串接)");
+            alert("正在連線至 Google 表單同步...");
         }
 
         function toggleArchive(id) {
@@ -1019,7 +999,6 @@
                         </div>
                     </div>
                     
-                    <!-- 卡片主體排版：左側卡號密碼，右側 QR Code -->
                     <div class="card-content-grid">
                         <div class="card-info-side">
                             <div class="info-row">
@@ -1037,7 +1016,6 @@
                         </div>
                     </div>
 
-                    <!-- 指定加入的紅色警告文字 -->
                     <div class="custom-warning-text">
                         會員點數限儲值至my card會員帳號<br>
                         請點選App下方「儲值購買」後，掃描QR Code
@@ -1054,7 +1032,6 @@
                 `;
                 listEl.appendChild(item);
 
-                // 即時動態產生 QR Code 圖片
                 setTimeout(() => {
                     const qrcodeContainer = document.getElementById(`qrcode-${card.id}`);
                     if (qrcodeContainer && qrcodeContainer.childElementCount === 0) {
