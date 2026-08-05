@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyCard 儲值卡快掃助手</title>
+  <title>MyCard 擬真快掃助手</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
@@ -320,15 +320,12 @@
       }
     }
 
-    // 專為 MyCard 條碼結構打造的解析函式
     function parseMyCardData(rawData) {
       let cardNo = "----";
       let cardPwd = "----";
 
-      // 檢查是否含有常見的管道符號或卡片分隔方式
       if (rawData.includes('|')) {
         const parts = rawData.split('|').map(p => p.trim());
-        // 如果第一段包含識別字串，則智慧對應後續的卡號與密碼區塊
         if (parts.length >= 3) {
           cardNo = parts[1] || "----";
           cardPwd = parts[2] || "----";
