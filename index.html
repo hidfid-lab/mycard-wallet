@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MyCard 儲值卡快掃助手</title>
-  <!-- QRCode.js 用於根據解析數據生成右側 QR Code -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- jsQR 用於相容模式下的圖像讀取 -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,7 +32,6 @@
     .badge-native { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
     .badge-fallback { background: #7c2d12; color: #ffedd5; border: 1px solid #f97316; }
 
-    /* 相機畫面區塊 */
     #video-container { 
       position: relative; 
       width: 100%; 
@@ -97,7 +94,6 @@
     #fallback-section { display: none; margin: 12px auto; max-width: 420px; }
     input[type="file"] { display: none; }
 
-    /* =============== MyCard 擬真卡片樣式 =============== */
     .card-container {
       margin: 20px auto;
       max-width: 420px;
@@ -181,7 +177,6 @@
       line-height: 1.5;
     }
 
-    /* 歷史記錄清單 */
     .history-section { margin: 24px auto 0; max-width: 420px; text-align: left; }
     .history-title { font-size: 14px; color: #8b949e; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     .history-list { list-style: none; max-height: 200px; overflow-y: auto; }
@@ -325,11 +320,23 @@
       }
     }
 
+    // 專為 MyCard 條碼結構打造的解析函式
     function parseMyCardData(rawData) {
       let cardNo = "----";
       let cardPwd = "----";
 
-      if (rawData.includes(',')) {
+      // 檢查是否含有常見的管道符號或卡片分隔方式
+      if (rawData.includes('|')) {
+        const parts = rawData.split('|').map(p => p.trim());
+        // 如果第一段包含識別字串，則智慧對應後續的卡號與密碼區塊
+        if (parts.length >= 3) {
+          cardNo = parts[1] || "----";
+          cardPwd = parts[2] || "----";
+        } else if (parts.length === 2) {
+          cardNo = parts[0] || "----";
+          cardPwd = parts[1] || "----";
+        }
+      } else if (rawData.includes(',')) {
         const parts = rawData.split(',');
         cardNo = parts[0] || "----";
         cardPwd = parts[1] || "----";
@@ -371,13 +378,11 @@
       cardNumberElem.textContent = cardNo;
       cardPasswordElem.textContent = cardPwd;
 
-      // 關鍵修復：必須先顯示容器，QRCode 才能精準計算畫布寬高
       cardDisplay.style.display = "block";
 
       const qrContainer = document.getElementById('qrcode');
       qrContainer.innerHTML = ''; 
       
-      // 關鍵修復：加入 try-catch 防止特殊編碼直接報錯導致程序當機
       try {
         qrCodeInstance = new QRCode(qrContainer, {
           text: dataText,
@@ -388,7 +393,7 @@
           correctLevel: QRCode.CorrectLevel.M
         });
       } catch (e) {
-        console.warn("QR Code 渲染失敗，可能是字串過長或包含特殊字元:", e);
+        console.warn("QR Code 渲染失敗:", e);
         qrContainer.innerHTML = '<div style="color:#ef4444; font-size:12px; text-align:center; padding: 20px 0;">格式不支援預覽</div>';
       }
 
@@ -420,7 +425,6 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         
-        // 關鍵修復：加入反轉色偵測以提升收據條碼支援度
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: "attemptBoth"
         });
