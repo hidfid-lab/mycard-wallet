@@ -4,21 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MyCard 儲值卡快掃助手</title>
+  <!-- QRCode.js 用於根據解析數據生成右側 QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- jsQR 用於相容模式下的圖像讀取 -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-      background: #0f141c; 
-      color: #e0e6ed; 
+      background: #0d1117; 
+      color: #e6edf3; 
       text-align: center; 
       padding: 16px;
       padding-bottom: 40px;
     }
     
     header { margin-bottom: 16px; }
-    h1 { font-size: 20px; color: #3b82f6; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .subtitle { font-size: 12px; color: #8899a6; }
+    h1 { font-size: 20px; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .subtitle { font-size: 12px; color: #8b949e; }
 
     .status-badge { 
       display: inline-block; 
@@ -28,9 +31,10 @@
       font-weight: bold; 
       margin: 12px 0; 
     }
-    .badge-native { background: #166534; color: #4ade80; border: 1px solid #22c55e; }
-    .badge-fallback { background: #9a3412; color: #ffedd5; border: 1px solid #f97316; }
+    .badge-native { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
+    .badge-fallback { background: #7c2d12; color: #ffedd5; border: 1px solid #f97316; }
 
+    /* 相機畫面區塊 */
     #video-container { 
       position: relative; 
       width: 100%; 
@@ -40,12 +44,11 @@
       border-radius: 16px; 
       background: #000; 
       aspect-ratio: 4/3; 
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      border: 1px solid #1e293b;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      border: 1px solid #30363d;
     }
     video { width: 100%; height: 100%; object-fit: cover; }
     
-    /* 掃描框與動態線條 */
     .overlay-box { 
       position: absolute; 
       top: 50%; 
@@ -53,7 +56,7 @@
       transform: translate(-50%, -50%); 
       width: 70%; 
       height: 60%; 
-      border: 2px solid #3b82f6; 
+      border: 2px solid #00aeef; 
       border-radius: 12px; 
       pointer-events: none; 
       box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
@@ -64,8 +67,8 @@
       left: 0;
       width: 100%;
       height: 2px;
-      background: #60a5fa;
-      box-shadow: 0 0 8px #3b82f6;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #0284c7;
       animation: scan 2s infinite ease-in-out;
     }
     @keyframes scan {
@@ -83,65 +86,127 @@
       border-radius: 10px; 
       border: none; 
       cursor: pointer; 
-      background: #2563eb; 
+      background: #0284c7; 
       color: white; 
       transition: background 0.2s;
     }
-    .btn:active { background: #1d4ed8; }
-    .btn-secondary { background: #334155; color: #cbd5e1; }
-    .btn-secondary:active { background: #1e293b; }
-
-    /* 最新讀取結果區塊 */
-    .result-card {
-      margin: 16px auto; 
-      max-width: 420px; 
-      padding: 16px; 
-      background: #1e293b; 
-      border-radius: 12px; 
-      border: 1px solid #334155; 
-      text-align: left;
-    }
-    .result-header { font-size: 13px; color: #94a3b8; margin-bottom: 6px; display: flex; justify-content: space-between; }
-    .result-content { 
-      font-size: 18px; 
-      font-family: monospace; 
-      font-weight: bold; 
-      color: #facc15; 
-      word-break: break-all;
-      margin-bottom: 12px;
-    }
-    .action-row { display: flex; gap: 8px; }
-    .btn-sm { padding: 8px 12px; font-size: 13px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
-    .btn-copy { background: #059669; color: white; }
-    .btn-link { background: #0284c7; color: white; text-decoration: none; display: inline-block; text-align: center; }
+    .btn:active { background: #0369a1; }
+    .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+    .btn-secondary:active { background: #161b22; }
 
     #fallback-section { display: none; margin: 12px auto; max-width: 420px; }
     input[type="file"] { display: none; }
 
+    /* =============== MyCard 擬真卡片樣式 (比照快樂小七風格) =============== */
+    .card-container {
+      margin: 20px auto;
+      max-width: 420px;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border: 2px solid #00aeef;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 25px rgba(0, 174, 239, 0.2);
+      text-align: left;
+      display: none; /* 有掃描結果才顯示 */
+    }
+    .card-header-logo {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #374151;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .mycard-brand {
+      font-size: 18px;
+      font-weight: 900;
+      color: #00aeef;
+      letter-spacing: 1px;
+    }
+    .card-tag {
+      font-size: 11px;
+      background: #00aeef22;
+      color: #38bdf8;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #00aeef44;
+    }
+    .card-body-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .card-info-left {
+      flex: 1;
+    }
+    .info-group {
+      margin-bottom: 10px;
+    }
+    .info-label {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+    .info-value {
+      font-size: 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+      color: #f3f4f6;
+      letter-spacing: 1px;
+      word-break: break-all;
+    }
+    .card-qr-right {
+      background: #ffffff;
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 100px;
+    }
+    .card-qr-right canvas, .card-qr-right img {
+      width: 90px !important;
+      height: 90px !important;
+    }
+    .card-notice-red {
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px dashed #374151;
+      line-height: 1.5;
+    }
+
     /* 歷史記錄清單 */
     .history-section { margin: 24px auto 0; max-width: 420px; text-align: left; }
-    .history-title { font-size: 14px; color: #94a3b8; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .history-title { font-size: 14px; color: #8b949e; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     .history-list { list-style: none; max-height: 200px; overflow-y: auto; }
     .history-item { 
-      background: #0f172a; 
+      background: #161b22; 
       padding: 10px 12px; 
       border-radius: 8px; 
       margin-bottom: 6px; 
       font-family: monospace; 
-      font-size: 14px; 
+      font-size: 13px; 
       display: flex; 
       justify-content: space-between; 
       align-items: center;
-      border: 1px solid #1e293b;
+      border: 1px solid #30363d;
     }
-    .clear-btn { background: none; border: none; color: #ef4444; font-size: 12px; cursor: pointer; }
+    .clear-btn { background: none; border: none; color: #f85149; font-size: 12px; cursor: pointer; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+    .btn-copy { background: #059669; color: white; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>💳 MyCard 條碼/QR快掃助手</h1>
-    <div class="subtitle">針對 MyCard 點數卡優化之連續鏡頭辨識工具</div>
+    <h1>💳 MyCard 擬真快掃助手</h1>
+    <div class="subtitle">自動解析點數卡並重組為實體卡片樣式</div>
   </header>
 
   <div id="mode-badge" class="status-badge">正在檢測硬體支援度...</div>
@@ -159,26 +224,48 @@
   </div>
 
   <div id="fallback-section">
-    <p style="font-size: 13px; color: #94a3b8; margin-bottom: 8px;">當前瀏覽器不支援原生高幀率掃描，建議拍照上傳：</p>
+    <p style="font-size: 13px; color: #8b949e; margin-bottom: 8px;">當前瀏覽器不支援高幀率硬體掃描，請選擇相片上傳：</p>
     <label for="file-input" class="btn btn-secondary" style="display: block; width: 100%;">📷 拍照 / 選擇圖片辨識</label>
     <input type="file" id="file-input" accept="image/*" onchange="handleFileUpload(event)">
   </div>
 
-  <div class="result-card">
-    <div class="result-header">
-      <span>最新掃描結果</span>
-      <span id="scan-time"></span>
+  <!-- =============== MyCard 擬真還原卡片區塊 =============== -->
+  <div id="card-display" class="card-container">
+    <div class="card-header-logo">
+      <span class="mycard-brand">MyCard 點數卡</span>
+      <span class="card-tag">掃描成功</span>
     </div>
-    <div class="result-content" id="scan-result">等待掃描中...</div>
-    <div class="action-row" id="action-buttons" style="display: none;">
-      <button class="btn-sm btn-copy" onclick="copyResult()">複製內容</button>
-      <a class="btn-sm btn-link" href="https://www.mycard520.com.tw/MyCardPay/" target="_blank">前往 MyCard 儲值</a>
+    
+    <div class="card-body-flex">
+      <!-- 左側：卡號與密碼 -->
+      <div class="card-info-left">
+        <div class="info-group">
+          <div class="info-label">卡號 (Card No.)</div>
+          <div id="card-number" class="info-value">----</div>
+        </div>
+        <div class="info-group" style="margin-bottom: 0;">
+          <div class="info-label">密碼 (PIN)</div>
+          <div id="card-password" class="info-value">----</div>
+        </div>
+      </div>
+
+      <!-- 右側：QR Code 呈現 -->
+      <div class="card-qr-right">
+        <div id="qrcode"></div>
+      </div>
+    </div>
+
+    <!-- 指定要求的紅色提示字樣 -->
+    <div class="card-notice-red">
+      會員點數限儲值至my card會員帳號<br>
+      請點選App下方「儲值購買」後，掃描QR Code
     </div>
   </div>
 
+  <!-- 歷史紀錄 -->
   <div class="history-section">
     <div class="history-title">
-      <span>掃描歷史紀錄 (<span id="history-count">0</span>)</span>
+      <span>歷史掃描紀錄 (<span id="history-count">0</span>)</span>
       <button class="clear-btn" onclick="clearHistory()">清除紀錄</button>
     </div>
     <ul class="history-list" id="history-list"></ul>
@@ -192,16 +279,17 @@
     let barcodeDetector = null;
     let lastScannedText = "";
     let lastScannedTime = 0;
+    let qrCodeInstance = null;
     const historyData = [];
 
     const video = document.getElementById('video');
-    const resultElem = document.getElementById('scan-result');
     const modeBadge = document.getElementById('mode-badge');
     const fallbackSection = document.getElementById('fallback-section');
-    const actionButtons = document.getElementById('action-buttons');
-    const scanTimeElem = document.getElementById('scan-time');
+    const cardDisplay = document.getElementById('card-display');
+    const cardNumberElem = document.getElementById('card-number');
+    const cardPasswordElem = document.getElementById('card-password');
 
-    // 1. 初始化檢查硬體支援 (支援 QR Code 與常用一維條碼)
+    // 1. 初始化檢查硬體支援
     async function initCheck() {
       if ('BarcodeDetector' in window) {
         try {
@@ -210,20 +298,20 @@
             barcodeDetector = new BarcodeDetector({ 
               formats: ['qr_code', 'code_128', 'code_39', 'ean_13'] 
             });
-            modeBadge.textContent = "⚡ 已啟用：原生硬體加速 (高幀率連續掃描)";
+            modeBadge.textContent = "⚡ 已啟用：硬體加速連續掃描";
             modeBadge.className = "status-badge badge-native";
             return;
           }
         } catch (e) { console.warn("BarcodeDetector 檢測失敗:", e); }
       }
       
-      // 降級備用提示
-      modeBadge.textContent = "⚠️ 已降級：通用相容模式 (建議拍照上傳)";
+      // 降級備用
+      modeBadge.textContent = "⚠️ 已降級：相容模式 (建議拍照上傳)";
       modeBadge.className = "status-badge badge-fallback";
       fallbackSection.style.display = "block";
     }
 
-    // 2. 開啟鏡頭
+    // 2. 開啟連續鏡頭
     async function startCamera() {
       if (isScanning) return;
       try {
@@ -240,15 +328,47 @@
           scanWithFallbackJS();
         }
       } catch (err) {
-        alert("無法存取相機，請確認已授權相機存取權限。");
+        alert("無法存取相機，請確認瀏覽器已獲授權。");
         console.error(err);
       }
     }
 
-    // 處理成功掃描後的資料
+    // 3. 解析 MyCard QR Code 內容邏輯 (自動拆解 卡號 與 密碼)
+    function parseMyCardData(rawData) {
+      let cardNo = "----";
+      let cardPwd = "----";
+
+      // 情況 A：內容包含常見的分隔符號 (如號碼與密碼用逗號、分號、等號或斜線隔開)
+      if (rawData.includes(',')) {
+        const parts = rawData.split(',');
+        cardNo = parts[0] || "----";
+        cardPwd = parts[1] || "----";
+      } else if (rawData.includes(';')) {
+        const parts = rawData.split(';');
+        cardNo = parts[0] || "----";
+        cardPwd = parts[1] || "----";
+      } else if (rawData.includes('=')) {
+        const parts = rawData.split('=');
+        cardNo = parts[0] || "----";
+        cardPwd = parts[1] || "----";
+      } else if (rawData.length >= 16) {
+        // 情況 B：若無明確分隔字元，嘗試依標準字數自動對半拆分（卡號通常為前半段）
+        const half = Math.floor(rawData.length / 2);
+        cardNo = rawData.substring(0, half);
+        cardPwd = rawData.substring(half);
+      } else {
+        // 情況 C：一般純號碼
+        cardNo = rawData;
+        cardPwd = "N/A";
+      }
+
+      return { cardNo, cardPwd };
+    }
+
+    // 處理成功掃描後的資料並生成擬真卡片
     function handleScanSuccess(dataText) {
       const now = Date.now();
-      // 防止冷卻時間內重複觸發 (2秒冷卻)
+      // 防重複觸發機制 (2秒內不重複讀取相同內容)
       if (dataText === lastScannedText && (now - lastScannedTime) < 2000) {
         return;
       }
@@ -256,23 +376,41 @@
       lastScannedText = dataText;
       lastScannedTime = now;
 
-      // 觸發手機震動反饋
+      // 手機觸覺震動反饋
       if (navigator.vibrate) {
         navigator.vibrate(100);
       }
 
-      resultElem.textContent = dataText;
-      scanTimeElem.textContent = new Date().toLocaleTimeString();
-      actionButtons.style.display = "flex";
+      // 解析卡號與密碼
+      const { cardNo, cardPwd } = parseMyCardData(dataText);
 
-      // 加入歷史紀錄
-      if (!historyData.includes(dataText)) {
-        historyData.unshift(dataText);
+      // 更新卡片文字內容
+      cardNumberElem.textContent = cardNo;
+      cardPasswordElem.textContent = cardPwd;
+
+      // 右側動態生成 QR Code
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = ''; // 清空舊的 QR Code
+      qrCodeInstance = new QRCode(qrContainer, {
+        text: dataText,
+        width: 90,
+        height: 90,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // 顯示擬真卡片
+      cardDisplay.style.display = "block";
+
+      // 存入歷史紀錄
+      if (!historyData.some(h => h.raw === dataText)) {
+        historyData.unshift({ raw: dataText, cardNo, cardPwd });
         updateHistoryUI();
       }
     }
 
-    // 3. 模式 A：原生 BarcodeDetector 連續掃描
+    // 4. 原生連續掃描迴圈
     async function scanWithNativeDetector() {
       if (!isScanning) return;
       try {
@@ -284,7 +422,7 @@
       if (isScanning) requestAnimationFrame(scanWithNativeDetector);
     }
 
-    // 4. 模式 B：純 JS 降級降頻掃描
+    // 5. 純 JS 降級掃描迴圈
     function scanWithFallbackJS() {
       if (!isScanning) return;
       const canvas = document.getElementById('hidden-canvas');
@@ -304,7 +442,7 @@
       if (isScanning) setTimeout(scanWithFallbackJS, 250);
     }
 
-    // 5. 模式 C：檔案 / 拍照上傳解析
+    // 6. 上傳圖片解碼
     function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -322,7 +460,7 @@
           if (code) {
             handleScanSuccess(code.data);
           } else {
-            alert("未能讀取到清晰的條碼或 QR Code，請重試。");
+            alert("未能讀取到清晰的 QR Code，請重試。");
           }
         };
         img.src = e.target.result;
@@ -330,23 +468,13 @@
       reader.readAsDataURL(file);
     }
 
-    // 6. 關閉鏡頭
+    // 7. 關閉相機
     function stopCamera() {
       isScanning = false;
       if (videoStream) {
         videoStream.getTracks().forEach(track => track.stop());
         videoStream = null;
       }
-    }
-
-    // 複製結果到剪貼簿
-    function copyResult() {
-      if (!lastScannedText) return;
-      navigator.clipboard.writeText(lastScannedText).then(() => {
-        alert("已複製序號/卡號至剪貼簿！");
-      }).catch(err => {
-        alert("複製失敗，請手動複製。");
-      });
     }
 
     // 更新歷史紀錄 UI
@@ -360,14 +488,22 @@
         const li = document.createElement('li');
         li.className = 'history-item';
         li.innerHTML = `
-          <span>${item}</span>
-          <button class="btn-sm btn-copy" onclick="navigator.clipboard.writeText('${item}')">複製</button>
+          <div>
+            <div><strong>卡號:</strong> ${item.cardNo}</div>
+            <div style="color: #9ca3af; font-size: 11px;"><strong>密碼:</strong> ${item.cardPwd}</div>
+          </div>
+          <button class="btn-sm btn-copy" onclick="copyText('${item.raw}')">複製完整數據</button>
         `;
         historyList.appendChild(li);
       });
     }
 
-    // 清除歷史紀錄
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("已複製內容至剪貼簿！");
+      });
+    }
+
     function clearHistory() {
       historyData.length = 0;
       updateHistoryUI();
