@@ -1,844 +1,446 @@
+❤️ 完全理解你的核心需求
+專屬 MyCard 的收銀台架構
+我非常清楚你要的最終型態
+把超商點數跟 MyCard 正式分家，打造一個專屬於 MyCard 的獨立網頁應用程式 (Web App)
+保留你最喜歡的櫃檯支付介面、面額選擇按鈕、掃描成功後的擬真卡片展示，以及使用後可以封存至工作日誌的完整生命週期
+最關鍵的是，底層的掃描引擎徹底捨棄會干擾 DOM 結構的套件，全面換上我們剛剛調校好的原生視訊 (Video) 串流、條碼偵測器 (Barcode Detector) 與降級相容腳本 (jsQR)
+這樣一來，掃描鏡頭絕對秒開秒讀，介面邏輯也能維持你習慣的工作流
+❤️ 完整獨立版程式碼
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyCard 智慧點數卡專屬皮夾</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyCard 專屬收銀台 (原生鏡頭版)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      background: #0d1117; 
+      color: #e6edf3; 
+      text-align: center; 
+      padding: 16px;
+      padding-bottom: 60px;
+    }
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/1.0.0/qrcode.min.js"></script>
+    header { margin-bottom: 16px; }
+    h1 { font-size: 20px; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .subtitle { font-size: 12px; color: #8b949e; }
 
-    <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --primary: #3b82f6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --mycard-blue: #00aeef;
-            --text-main: #ffffff;
-            --text-sub: #aaa;
-            --border-color: #333;
-        }
+    .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; margin: 12px 0; }
+    .badge-native { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
+    .badge-fallback { background: #7c2d12; color: #ffedd5; border: 1px solid #f97316; }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+    /* 面額選擇器 */
+    .denomination-section {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 0 auto 20px;
+      max-width: 420px;
+      text-align: left;
+    }
+    .section-title { font-size: 14px; color: #8b949e; margin-bottom: 12px; font-weight: bold; }
+    .face-value-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .val-btn {
+      background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 10px 0; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+    }
+    .val-btn.active { background: #0284c7; color: white; border-color: #38bdf8; }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 12px;
-        }
+    /* 原生鏡頭區塊 */
+    #video-container { 
+      position: relative; width: 100%; max-width: 420px; margin: 0 auto; 
+      overflow: hidden; border-radius: 16px; background: #000; 
+      aspect-ratio: 4/3; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      border: 1px solid #30363d;
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    
+    .overlay-box { 
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+      width: 70%; height: 60%; border: 2px solid #00aeef; border-radius: 12px; 
+      pointer-events: none; box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+    }
+    .scan-line {
+      position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+      background: #38bdf8; box-shadow: 0 0 8px #0284c7;
+      animation: scan 2s infinite ease-in-out;
+    }
+    @keyframes scan { 0% { top: 5%; } 50% { top: 95%; } 100% { top: 5%; } }
 
-        .header {
-            text-align: center;
-            margin-bottom: 12px;
-        }
-        .header h1 {
-            font-size: 1.4rem;
-            margin: 0;
-            color: var(--mycard-blue);
-            font-weight: 800;
-        }
+    .btn-group { display: flex; justify-content: center; gap: 10px; margin: 16px auto; max-width: 420px; }
+    .btn { 
+      flex: 1; padding: 12px 16px; font-size: 15px; font-weight: bold; 
+      border-radius: 10px; border: none; cursor: pointer; background: #0284c7; color: white; transition: 0.2s;
+    }
+    .btn:active { background: #0369a1; }
+    .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+    .btn-secondary:active { background: #161b22; }
 
-        .stats-panel {
-            background-color: var(--card-bg);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-around;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-        .stat-item div:first-child {
-            font-size: 0.8rem;
-            color: var(--text-sub);
-        }
-        .stat-item div:last-child {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: var(--mycard-blue);
-        }
+    #fallback-section { display: none; margin: 12px auto; max-width: 420px; }
+    input[type="file"] { display: none; }
 
-        .camera-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 480px;
-            height: 220px;
-            margin: 0 auto 12px auto;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: #000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: none;
-            border: 1px solid var(--mycard-blue);
-        }
+    /* 擬真展示卡片 */
+    .card-container {
+      margin: 20px auto; max-width: 420px;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border: 2px solid #00aeef; border-radius: 16px; padding: 16px;
+      box-shadow: 0 10px 25px rgba(0, 174, 239, 0.2); text-align: left;
+      display: none; 
+    }
+    .card-header-logo { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #374151; padding-bottom: 8px; margin-bottom: 12px; }
+    .mycard-brand { font-size: 18px; font-weight: 900; color: #00aeef; letter-spacing: 1px; }
+    .card-tag { font-size: 11px; background: #00aeef22; color: #38bdf8; padding: 2px 8px; border-radius: 4px; border: 1px solid #00aeef44; }
+    .card-body-flex { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .card-info-left { flex: 1; }
+    .info-group { margin-bottom: 10px; }
+    .info-label { font-size: 11px; color: #9ca3af; margin-bottom: 2px; }
+    .info-value { font-size: 16px; font-family: 'Courier New', monospace; font-weight: bold; color: #f3f4f6; letter-spacing: 1px; word-break: break-all; }
+    
+    .card-qr-right { background: #ffffff; padding: 8px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 100px; }
+    .card-qr-right canvas, .card-qr-right img { width: 90px !important; height: 90px !important; }
+    
+    .card-action-bar { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-archive { flex: 1; background: #059669; color: white; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+    .btn-archive:active { background: #047857; }
 
-        #reader {
-            width: 100%;
-            height: 100%;
-        }
-        #reader button, #reader select { display: none !important; }
-        #reader video {
-            object-fit: cover !important;
-            width: 100% !important;
-            height: 100% !important;
-            filter: contrast(1.2) brightness(1.02);
-        }
-
-        .laser-line {
-            position: absolute;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background: var(--mycard-blue);
-            box-shadow: 0 0 8px var(--mycard-blue);
-            z-index: 10;
-            animation: laserScan 1.6s infinite ease-in-out;
-            pointer-events: none;
-            display: none;
-        }
-
-        @keyframes laserScan {
-            0% { top: 15%; opacity: 0.3; }
-            50% { top: 85%; opacity: 1; }
-            100% { top: 15%; opacity: 0.3; }
-        }
-
-        .status-tracker {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            background: rgba(17, 24, 39, 0.9);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            display: flex;
-            justify-content: space-between;
-            z-index: 20;
-        }
-        .status-tag {
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: #374151;
-        }
-        .status-tag.ok {
-            background: var(--mycard-blue);
-            color: #000;
-            font-weight: bold;
-        }
-
-        .toast-notify {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            right: 8px;
-            background: rgba(17, 24, 39, 0.92);
-            color: #ffffff;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-            display: none;
-        }
-
-        .panel-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .section-label {
-            font-size: 0.9rem;
-            font-weight: bold;
-            color: var(--mycard-blue);
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .option-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .opt-btn {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .opt-btn.active {
-            background: var(--mycard-blue);
-            border-color: var(--mycard-blue);
-            color: #000;
-        }
-
-        .custom-denom-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .custom-denom-row input {
-            flex: 1;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: white;
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-
-        .main-btn-group {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .btn-start {
-            flex: 1;
-            background: var(--mycard-blue);
-            color: #000;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .btn-stop {
-            flex: 1;
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            display: none;
-        }
-
-        .tool-btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .clean-btn {
-            width: 100%;
-            background-color: var(--warning);
-            color: #121212;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .sync-btn {
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .deleteAll-btn {
-            width: 100%;
-            background-color: #b91c1c;
-            color: white;
-            border: 1px solid #ef4444;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 12px;
-        }
-
-        #scan-status {
-            text-align: center;
-            color: var(--mycard-blue);
-            font-weight: bold;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            min-height: 20px;
-        }
-
-        .mycard-container-ui {
-            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-            border: 2px solid var(--mycard-blue);
-            border-radius: 12px;
-            padding: 14px;
-            margin-top: 10px;
-            box-shadow: 0 8px 20px rgba(0, 174, 239, 0.2);
-            text-align: left;
-        }
-        .mycard-header-logo {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #374151;
-            padding-bottom: 6px;
-            margin-bottom: 10px;
-        }
-        .mycard-brand {
-            font-size: 16px;
-            font-weight: 900;
-            color: var(--mycard-blue);
-            letter-spacing: 1px;
-        }
-        .mycard-tag {
-            font-size: 10px;
-            background: #00aeef22;
-            color: #38bdf8;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #00aeef44;
-        }
-        .mycard-body-flex {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-        }
-        .info-group {
-            margin-bottom: 8px;
-        }
-        .info-label {
-            font-size: 10px;
-            color: #9ca3af;
-            margin-bottom: 2px;
-        }
-        .info-value {
-            font-size: 14px;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            color: #f3f4f6;
-            letter-spacing: 1px;
-            word-break: break-all;
-        }
-        .card-qr-right {
-            background: #ffffff;
-            padding: 6px;
-            border-radius: 6px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-width: 80px;
-        }
-        .card-qr-right canvas, .card-qr-right img {
-            width: 80px !important;
-            height: 80px !important;
-        }
-        .card-notice-red {
-            color: #ef4444;
-            font-size: 11px;
-            font-weight: bold;
-            text-align: center;
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px dashed #374151;
-            line-height: 1.4;
-        }
-
-        .folder-tabs-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .folder-tab {
-            background-color: #2a2a2a;
-            border: 1px solid #444;
-            color: #aaa;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-        }
-        .folder-tab.active {
-            background-color: var(--mycard-blue);
-            color: #000;
-            font-weight: bold;
-            border-color: var(--mycard-blue);
-        }
-
-        .card-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .card-item {
-            background-color: var(--card-bg);
-            padding: 14px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .action-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-top: 4px;
-        }
-        .btn-action {
-            border: none;
-            padding: 8px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: bold;
-            flex: 1;
-        }
-        .archive-btn { background-color: var(--primary); color: white; }
-        .delete-btn { background-color: var(--danger); color: white; }
-
-        .hud-console {
-            background: #111827;
-            color: var(--mycard-blue);
-            font-family: monospace;
-            font-size: 0.78rem;
-            padding: 10px;
-            border-radius: 8px;
-            height: 180px;
-            overflow-y: auto;
-            line-height: 1.5;
-            border: 1px solid #1f2937;
-        }
-    </style>
+    /* 工作日誌封存區 */
+    .history-section { margin: 24px auto 0; max-width: 420px; text-align: left; }
+    .history-title { font-size: 14px; color: #8b949e; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .history-list { list-style: none; max-height: 300px; overflow-y: auto; }
+    .history-item { 
+      background: #161b22; padding: 12px; border-radius: 8px; margin-bottom: 8px; 
+      font-size: 13px; border: 1px solid #30363d; position: relative;
+    }
+    .history-meta { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: #8b949e; }
+    .history-face-value { color: #38bdf8; font-weight: bold; }
+    .history-code { font-family: monospace; font-size: 14px; color: #e6edf3; margin-bottom: 4px; }
+    .history-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    
+    .clear-btn { background: none; border: none; color: #f85149; font-size: 12px; cursor: pointer; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+    .btn-copy { background: #30363d; color: #c9d1d9; }
+  </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>💳 MyCard 智慧點數卡專屬皮夾</h1>
+  <header>
+    <h1>💳 MyCard 專屬收銀台</h1>
+    <div class="subtitle">自動解析、面額綁定與日誌封存系統</div>
+  </header>
+
+  <div class="denomination-section">
+    <div class="section-title">📌 第一步：請先選擇點數面額</div>
+    <div class="face-value-grid" id="face-value-grid">
+      <button class="val-btn active" onclick="setFaceValue(1000)">1000</button>
+      <button class="val-btn" onclick="setFaceValue(500)">500</button>
+      <button class="val-btn" onclick="setFaceValue(300)">300</button>
+      <button class="val-btn" onclick="setFaceValue(150)">150</button>
+      <button class="val-btn" onclick="setFaceValue(50)">50</button>
+      <button class="val-btn" onclick="setFaceValue(30)">30</button>
+      <button class="val-btn" onclick="setFaceValue(0)">自訂</button>
+    </div>
+  </div>
+
+  <div id="mode-badge" class="status-badge">檢測相機模組中...</div>
+
+  <div id="video-container">
+    <video id="video" playsinline></video>
+    <div class="overlay-box">
+      <div class="scan-line"></div>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn" id="start-btn" onclick="startCamera()">啟動收銀鏡頭</button>
+    <button class="btn btn-secondary" onclick="stopCamera()">關閉鏡頭</button>
+  </div>
+
+  <div id="fallback-section">
+    <label for="file-input" class="btn btn-secondary" style="display: block; width: 100%;">📷 拍照 / 選擇圖片辨識</label>
+    <input type="file" id="file-input" accept="image/*" onchange="handleFileUpload(event)">
+  </div>
+
+  <div id="card-display" class="card-container">
+    <div class="card-header-logo">
+      <span class="mycard-brand">MyCard 即時解析</span>
+      <span class="card-tag" id="current-face-value-tag">面額: 1000</span>
+    </div>
+    
+    <div class="card-body-flex">
+      <div class="card-info-left">
+        <div class="info-group">
+          <div class="info-label">卡號 (Card No.)</div>
+          <div id="card-number" class="info-value">----</div>
+        </div>
+        <div class="info-group" style="margin-bottom: 0;">
+          <div class="info-label">密碼 (PIN)</div>
+          <div id="card-password" class="info-value">----</div>
+        </div>
+      </div>
+      <div class="card-qr-right">
+        <div id="qrcode"></div>
+      </div>
     </div>
 
-    <div class="stats-panel">
-        <div class="stat-item">
-            <div>有效點數卡數</div>
-            <div id="statCount">0 張</div>
-        </div>
-        <div class="stat-item">
-            <div>總剩餘面額</div>
-            <div id="statTotal">NT$ 0</div>
-        </div>
+    <div class="card-action-bar">
+      <button class="btn-archive" onclick="archiveCurrentCard()">📥 封存至工作日誌</button>
     </div>
+  </div>
 
-    <div class="panel-card">
-        <div class="section-label">1. 選擇點數卡面額 (NT$)</div>
-        <div class="option-group" id="denomGroup">
-            <button class="opt-btn" onclick="setDenom(150)">150</button>
-            <button class="opt-btn active" onclick="setDenom(300)">300</button>
-            <button class="opt-btn" onclick="setDenom(500)">500</button>
-            <button class="opt-btn" onclick="setDenom(1000)">1000</button>
-            <button class="opt-btn" onclick="setDenom(3000)">3000</button>
-        </div>
-        <div class="custom-denom-row">
-            <input type="number" id="customDenomInput" placeholder="或輸入自訂面額..." oninput="selectCustomDenom(this.value)">
-        </div>
-
-        <div class="main-btn-group">
-            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 2、啟動 MyCard QR 掃描器</button>
-            <button class="btn-stop" id="stopBtn" onclick="stopCamera()">關閉鏡頭</button>
-        </div>
+  <div class="history-section">
+    <div class="history-title">
+      <span>工作日誌封存區 (<span id="history-count">0</span>)</span>
+      <button class="clear-btn" onclick="clearWorklog()">清空日誌</button>
     </div>
+    <ul class="history-list" id="worklog-list"></ul>
+  </div>
 
-    <div class="camera-wrapper" id="cameraWrapper">
-        <div class="laser-line" id="laserLine"></div>
-        <div class="status-tracker">
-            <span id="tagMain" class="status-tag ok">狀態: 待捕獲</span>
-            <span id="tagSub" class="status-tag">專用 QR 解析</span>
-        </div>
-        <div class="toast-notify" id="toastNotify">
-            <span id="toastMsg">🎉 掃描成功</span>
-        </div>
-        <div id="reader"></div>
-    </div>
+  <canvas id="hidden-canvas" style="display: none;"></canvas>
 
-    <div id="scan-status"></div>
+  <script>
+    const STORAGE_KEY = 'mycard_worklog_2026';
+    let currentFaceValue = 1000;
+    let videoStream = null;
+    let isScanning = false;
+    let barcodeDetector = null;
+    let lastScannedText = "";
+    let lastScannedTime = 0;
+    
+    // 暫存當前掃描結果以便封存
+    let tempCardData = null;
 
-    <div class="tool-btn-group">
-        <button class="clean-btn" onclick="removeDuplicateCards()">🧹 一鍵清除本機重複卡片</button>
-        <button class="sync-btn" onclick="syncUnsentCardsToGoogleSheets()">📤 智慧同步至 Google 表單</button>
-    </div>
+    const video = document.getElementById('video');
+    const modeBadge = document.getElementById('mode-badge');
+    const fallbackSection = document.getElementById('fallback-section');
+    const cardDisplay = document.getElementById('card-display');
+    const cardNumberElem = document.getElementById('card-number');
+    const cardPasswordElem = document.getElementById('card-password');
+    const faceValueTag = document.getElementById('current-face-value-tag');
 
-    <div class="panel-card">
-        <div class="section-label">
-            <span>📁 3、點數卡收納夾</span>
-        </div>
-        <div id="folderContent">
-            <div class="folder-tabs-grid" id="folderTabs"></div>
-            <div class="card-list" id="cardList"></div>
-        </div>
-    </div>
+    // 初始化與讀取本地資料
+    window.onload = async () => {
+      renderWorklog();
+      await initScannerCheck();
+    };
 
-    <div class="panel-card">
-        <div class="section-label" style="color: var(--text-sub);">4、系統工作日誌：</div>
-        <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] MyCard 獨立皮夾模組載入完成...</div>
-        </div>
-    </div>
+    function setFaceValue(val) {
+      currentFaceValue = val;
+      document.querySelectorAll('.val-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      faceValueTag.textContent = val === 0 ? "面額: 自訂" : `面額: ${val}`;
+    }
 
-    <button class="deleteAll-btn" onclick="deleteAllCardsEver()">💥 5、一鍵清除本機所有卡片</button>
+    async function initScannerCheck() {
+      if ('BarcodeDetector' in window) {
+        try {
+          const supportedFormats = await BarcodeDetector.getSupportedFormats();
+          if (supportedFormats.includes('qr_code')) {
+            barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+            modeBadge.textContent = "⚡ 已啟用原生硬體加速掃描";
+            modeBadge.className = "status-badge badge-native";
+            return;
+          }
+        } catch (e) { console.warn("偵測器初始化失敗:", e); }
+      }
+      modeBadge.textContent = "⚠️ 已降級為相容相機模式";
+      modeBadge.className = "status-badge badge-fallback";
+      fallbackSection.style.display = "block";
+    }
 
-    <script>
-        let currentDenom = 300;
-        let currentFolder = 'all';
-        let html5QrcodeScanner = null;
-        let isProcessing = false;
-
-        const STORAGE_KEY = 'mycard_exclusive_wallet_v1';
-
-        function log(msg) {
-            const consoleEl = document.getElementById('hudConsole');
-            if (!consoleEl) return;
-            const time = new Date().toLocaleTimeString();
-            const div = document.createElement('div');
-            div.innerText = `[${time}] ${msg}`;
-            consoleEl.appendChild(div);
-            consoleEl.scrollTop = consoleEl.scrollHeight;
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            renderFolders();
-            renderCards();
+    async function startCamera() {
+      if (isScanning) return;
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
-
-        function setDenom(val) {
-            currentDenom = Number(val);
-            updateBtnGroup('denomGroup', val);
-            document.getElementById('customDenomInput').value = '';
+        video.srcObject = videoStream;
+        await video.play();
+        isScanning = true;
+        
+        if (barcodeDetector) {
+          requestAnimationFrame(scanWithNativeDetector);
+        } else {
+          scanWithFallbackJS();
         }
+      } catch (err) {
+        alert("無法啟動相機，請檢查瀏覽器權限");
+      }
+    }
 
-        function selectCustomDenom(val) {
-            if (val) {
-                currentDenom = parseInt(val) || 0;
-                document.querySelectorAll('#denomGroup .opt-btn').forEach(btn => btn.classList.remove('active'));
-            }
-        }
+    function stopCamera() {
+      isScanning = false;
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+    }
 
-        function updateBtnGroup(groupId, matchText) {
-            const btns = document.querySelectorAll(`#${groupId} .opt-btn`);
-            btns.forEach(btn => {
-                if (btn.innerText.includes(matchText)) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-        }
+    function parseMyCardData(rawData) {
+      let cardNo = "----", cardPwd = "----";
+      if (rawData.includes('|')) {
+        const parts = rawData.split('|').map(p => p.trim());
+        if (parts.length >= 3) { cardNo = parts[1]; cardPwd = parts[2]; } 
+        else if (parts.length === 2) { cardNo = parts[0]; cardPwd = parts[1]; }
+      } else if (rawData.includes(',')) {
+        const parts = rawData.split(','); cardNo = parts[0]; cardPwd = parts[1];
+      } else if (rawData.length >= 16) {
+        const half = Math.floor(rawData.length / 2);
+        cardNo = rawData.substring(0, half); cardPwd = rawData.substring(half);
+      } else {
+        cardNo = rawData; cardPwd = "N/A";
+      }
+      return { cardNo, cardPwd, raw: rawData };
+    }
 
-        function getCards() {
-            const cards = localStorage.getItem(STORAGE_KEY);
-            return cards ? JSON.parse(cards) : [];
-        }
+    function handleScanSuccess(dataText) {
+      const now = Date.now();
+      if (dataText === lastScannedText && (now - lastScannedTime) < 2000) return;
+      
+      lastScannedText = dataText;
+      lastScannedTime = now;
+      if (navigator.vibrate) navigator.vibrate(100);
 
-        function saveCards(cards, shouldRender = true) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
-            if (shouldRender) {
-                renderFolders();
-                renderCards();
-            }
-        }
+      tempCardData = parseMyCardData(dataText);
+      cardNumberElem.textContent = tempCardData.cardNo;
+      cardPasswordElem.textContent = tempCardData.cardPwd;
+      
+      cardDisplay.style.display = "block";
 
-        function parseMyCardData(rawData) {
-            let cardNo = "----";
-            let cardPwd = "----";
-            if (rawData.includes('|')) {
-                const parts = rawData.split('|').map(p => p.trim());
-                if (parts.length >= 3) {
-                    cardNo = parts[1] || "----";
-                    cardPwd = parts[2] || "----";
-                } else if (parts.length === 2) {
-                    cardNo = parts[0] || "----";
-                    cardPwd = parts[1] || "----";
-                }
-            } else if (rawData.includes(',')) {
-                const parts = rawData.split(',');
-                cardNo = parts[0] || "----";
-                cardPwd = parts[1] || "----";
-            } else if (rawData.length >= 16) {
-                const half = Math.floor(rawData.length / 2);
-                cardNo = rawData.substring(0, half);
-                cardPwd = rawData.substring(half);
-            } else {
-                cardNo = rawData;
-                cardPwd = "N/A";
-            }
-            return { cardNo, cardPwd };
-        }
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = ''; 
+      try {
+        new QRCode(qrContainer, { text: dataText, width: 90, height: 90, colorDark: "#000", colorLight: "#fff", correctLevel: QRCode.CorrectLevel.M });
+      } catch (e) {
+        qrContainer.innerHTML = '<div style="color:red; font-size:12px;">預覽失敗</div>';
+      }
+      
+      // 掃描成功後自動關閉鏡頭以節省資源並聚焦於封存動作
+      stopCamera();
+    }
 
-        async function startCamera() {
-            log("► 啟動 MyCard 專屬掃描器...");
-            if (typeof Html5Qrcode === 'undefined') {
-                alert("掃碼元件載入中，請稍後再試！");
-                return;
-            }
+    async function scanWithNativeDetector() {
+      if (!isScanning) return;
+      try {
+        const barcodes = await barcodeDetector.detect(video);
+        if (barcodes.length > 0) handleScanSuccess(barcodes[0].rawValue);
+      } catch (err) {}
+      if (isScanning) requestAnimationFrame(scanWithNativeDetector);
+    }
 
-            const wrapper = document.getElementById('cameraWrapper');
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('stopBtn').style.display = 'block';
-            wrapper.style.display = 'block';
-            document.getElementById('laserLine').style.display = 'block';
+    function scanWithFallbackJS() {
+      if (!isScanning) return;
+      const canvas = document.getElementById('hidden-canvas');
+      const ctx = canvas.getContext('2d');
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+        if (code) handleScanSuccess(code.data);
+      }
+      if (isScanning) setTimeout(scanWithFallbackJS, 250);
+    }
 
-            try {
-                if (!html5QrcodeScanner) {
-                    html5QrcodeScanner = new Html5Qrcode("reader", {
-                        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-                    });
-                }
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.getElementById('hidden-canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width; canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+          if (code) handleScanSuccess(code.data);
+          else alert("未能讀取到清晰的條碼");
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
 
-                const config = { 
-                    fps: 25, 
-                    qrbox: { width: 260, height: 260 },
-                    videoConstraints: { facingMode: "environment" }
-                };
+    // 工作日誌與本地儲存邏輯
+    function archiveCurrentCard() {
+      if (!tempCardData) return;
+      
+      let worklog = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      
+      // 防止重複封存相同的紀錄
+      if (worklog.some(item => item.raw === tempCardData.raw)) {
+        alert("此卡號已經在工作日誌中了");
+        return;
+      }
 
-                await html5QrcodeScanner.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    () => {}
-                );
-                log("📷 鏡頭已啟動，請將 MyCard QR Code 對準框內");
-            } catch (err) {
-                log("❌ 開啟鏡頭失敗: " + err);
-                alert("相機開啟失敗，請確認已授權相機權限。");
-                stopCamera();
-            }
-        }
+      const timestamp = new Date().toLocaleString('zh-TW', { hour12: false });
+      const newEntry = {
+        ...tempCardData,
+        faceValue: currentFaceValue === 0 ? "自訂" : currentFaceValue,
+        time: timestamp
+      };
 
-        async function stopCamera() {
-            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-                try {
-                    await html5QrcodeScanner.stop();
-                    log("相機已關閉。");
-                } catch (e) {}
-            }
-            document.getElementById('cameraWrapper').style.display = 'none';
-            document.getElementById('laserLine').style.display = 'none';
-            document.getElementById('startBtn').style.display = 'block';
-            document.getElementById('stopBtn').style.display = 'none';
-            document.getElementById('scan-status').innerText = "";
-            isProcessing = false;
-        }
+      worklog.unshift(newEntry);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(worklog));
+      
+      cardDisplay.style.display = "none";
+      tempCardData = null;
+      renderWorklog();
+      alert("已成功封存至工作日誌！");
+    }
 
-        function onScanSuccess(decodedText) {
-            if (isProcessing) return;
-            isProcessing = true;
+    function renderWorklog() {
+      const worklogList = document.getElementById('worklog-list');
+      const historyCount = document.getElementById('history-count');
+      let worklog = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      
+      worklogList.innerHTML = '';
+      historyCount.textContent = worklog.length;
 
-            const val = decodedText.trim();
-            log(`🎯 成功捕獲 MyCard 代碼: ${val}`);
+      worklog.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'history-item';
+        li.innerHTML = `
+          <div class="history-meta">
+            <span>${item.time}</span>
+            <span class="history-face-value">$${item.faceValue}</span>
+          </div>
+          <div class="history-code">卡號: ${item.cardNo}</div>
+          <div class="history-code" style="color:#9ca3af; font-size:12px;">密碼: ${item.cardPwd}</div>
+          <div class="history-actions">
+            <button class="btn-sm btn-copy" onclick="copyLogData('${item.cardNo}', '${item.cardPwd}')">複製卡號與密碼</button>
+            <button class="btn-sm btn-copy" style="background:#b91c1c; color:white;" onclick="deleteLogEntry(${index})">刪除</button>
+          </div>
+        `;
+        worklogList.appendChild(li);
+      });
+    }
 
-            const parsed = parseMyCardData(val);
-            const cards = getCards();
+    function copyLogData(cardNo, cardPwd) {
+      const text = `卡號:${cardNo}\n密碼:${cardPwd}`;
+      navigator.clipboard.writeText(text).then(() => alert("已複製資料"));
+    }
 
-            const newCard = {
-                id: Date.now(),
-                channel: 'MyCard',
-                barcode1: parsed.cardNo,
-                barcode2: parsed.cardPwd,
-                raw: val,
-                denom: currentDenom,
-                type: 'qrcode',
-                status: 'active',
-                synced: false,
-                date: new Date().toLocaleDateString()
-            };
+    function deleteLogEntry(index) {
+      let worklog = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      worklog.splice(index, 1);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(worklog));
+      renderWorklog();
+    }
 
-            cards.unshift(newCard);
-            saveCards(cards);
-            log(`🎉 成功收錄點數卡：面額 NT$ ${newCard.denom}`);
-
-            const toast = document.getElementById('toastNotify');
-            document.getElementById('toastMsg').innerText = `🎉 成功入庫：MyCard $${newCard.denom}`;
-            toast.style.display = 'flex';
-
-            setTimeout(() => {
-                toast.style.display = 'none';
-                isProcessing = false;
-            }, 2000);
-        }
-
-        function renderFolders() {
-            const cards = getCards();
-            const tabsEl = document.getElementById('folderTabs');
-            const activeCount = cards.filter(c => c.status === 'active').length;
-            const archivedCount = cards.filter(c => c.status === 'archived').length;
-
-            let html = `<div class="folder-tab ${currentFolder === 'all' ? 'active' : ''}" onclick="switchFolder('all')">全部 (${activeCount})</div>`;
-            
-            const denoms = [...new Set(cards.filter(c => c.status === 'active').map(c => c.denom))].sort((a,b)=>a-b);
-            denoms.forEach(d => {
-                const count = cards.filter(c => c.status === 'active' && c.denom === d).length;
-                html += `<div class="folder-tab ${currentFolder == d ? 'active' : ''}" onclick="switchFolder('${d}')">$${d} (${count})</div>`;
-            });
-
-            html += `<div class="folder-tab ${currentFolder === 'archived' ? 'active' : ''}" onclick="switchFolder('archived')">已封存 (${archivedCount})</div>`;
-            tabsEl.innerHTML = html;
-        }
-
-        function switchFolder(folder) {
-            currentFolder = folder;
-            renderFolders();
-            renderCards();
-        }
-
-        function updateStats() {
-            const cards = getCards();
-            const activeCards = cards.filter(c => c.status === 'active');
-            const totalBalance = activeCards.reduce((sum, c) => sum + Number(c.denom), 0);
-            document.getElementById('statCount').innerText = `${activeCards.length} 張`;
-            document.getElementById('statTotal').innerText = `NT$ ${totalBalance}`;
-        }
-
-        function renderCards() {
-            updateStats();
-            const cards = getCards();
-            const listEl = document.getElementById('cardList');
-            listEl.innerHTML = '';
-
-            let filtered = cards.filter(c => {
-                if (currentFolder === 'all') return c.status === 'active';
-                if (currentFolder === 'archived') return c.status === 'archived';
-                return c.status === 'active' && c.denom == currentFolder;
-            });
-
-            if (filtered.length === 0) {
-                listEl.innerHTML = `<div style="text-align: center; color: #777; padding: 20px;">此分類目前沒有點數卡</div>`;
-                return;
-            }
-
-            filtered.forEach(card => {
-                const item = document.createElement('div');
-                item.className = 'card-item';
-
-                item.innerHTML = `
-                    <div class="mycard-container-ui" style="margin-top:0;">
-                        <div class="mycard-header-logo">
-                            <span class="mycard-brand">MyCard 點數卡</span>
-                            <span class="mycard-tag">${card.status === 'active' ? '有效卡片' : '已封存'} - NT$ ${card.denom}</span>
-                        </div>
-                        <div class="mycard-body-flex">
-                            <div style="flex:1;">
-                                <div class="info-group">
-                                    <div class="info-label">卡號 (Card No.)</div>
-                                    <div class="info-value">${card.barcode1}</div>
-                                </div>
-                                <div class="info-group" style="margin-bottom:0;">
-                                    <div class="info-label">密碼 (PIN)</div>
-                                    <div class="info-value">${card.barcode2}</div>
-                                </div>
-                            </div>
-                            <div class="card-qr-right">
-                                <div id="qr-${card.id}"></div>
-                            </div>
-                        </div>
-                        <div class="card-notice-red">
-                            會員點數限儲值至 MyCard 會員帳號<br>
-                            請點選 App 下方儲值購買後掃描 QR Code
-                        </div>
-                    </div>
-                    <div class="action-row">
-                        <button class="btn-action archive-btn" onclick="toggleArchive(${card.id})">${card.status === 'active' ? '📦 封存' : '📤 恢復'}</button>
-                        <button class="btn-action delete-btn" onclick="deleteSingleCard(${card.id})">🗑️ 刪除</button>
-                    </div>
-                `;
-                listEl.appendChild(item);
-
-                setTimeout(() => {
-                    const qrContainer = document.getElementById(`qr-${card.id}`);
-                    if (qrContainer && qrContainer.innerHTML === '') {
-                        try {
-                            new QRCode(qrContainer, {
-                                text: card.raw || `${card.barcode1}|${card.barcode2}`,
-                                width: 80,
-                                height: 80,
-                                colorDark: "#000000",
-                                colorLight: "#ffffff",
-                                correctLevel: QRCode.CorrectLevel.M
-                            });
-                        } catch (e) {}
-                    }
-                }, 50);
-            });
-        }
-
-        function toggleArchive(id) {
-            let cards = getCards();
-            const card = cards.find(c => c.id === id);
-            if (card) {
-                card.status = card.status === 'active' ? 'archived' : 'active';
-                saveCards(cards);
-            }
-        }
-
-        function deleteSingleCard(id) {
-            if (confirm("確定要刪除這張點數卡嗎？")) {
-                let cards = getCards();
-                cards = cards.filter(c => c.id !== id);
-                saveCards(cards);
-            }
-        }
-
-        function removeDuplicateCards() {
-            let cards = getCards();
-            const seen = new Set();
-            let unique = [];
-            cards.forEach(c => {
-                if (!seen.has(c.barcode1)) {
-                    seen.add(c.barcode1);
-                    unique.push(c);
-                }
-            });
-            saveCards(unique);
-            alert("重複點數卡清理完成！");
-        }
-
-        async function syncUnsentCardsToGoogleSheets() {
-            const cards = getCards();
-            if (cards.length === 0) {
-                alert("沒有點數卡可同步！");
-                return;
-            }
-            alert("點數卡資料已準備同步至雲端表單。");
-            log("📤 雲端同步程序執行完畢");
-        }
-
-        function deleteAllCardsEver() {
-            if (confirm("警告：確定要清空本機所有點數卡嗎？")) {
-                localStorage.removeItem(STORAGE_KEY);
-                renderFolders();
-                renderCards();
-                alert("已全部清空。");
-            }
-        }
-    </script>
+    function clearWorklog() {
+      if (confirm("確定要清空所有的工作日誌嗎？此動作無法復原")) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderWorklog();
+      }
+    }
+  </script>
 </body>
 </html>
+
