@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MyCard 智慧點數皮夾</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- 引入 QRCode 產生器套件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --primary: #ef4444; /* MyCard 紅色系 */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #ffffff;
+            --text-sub: #aaa;
+            --border-color: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 12px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            margin: 0;
+            color: #ff4d4d;
+            font-weight: 800;
+        }
+
+        /* 統計面板 */
+        .stats-panel {
+            background-color: var(--card-bg);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        .stat-item div:first-child {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+        }
+        .stat-item div:last-child {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #34d399;
+        }
+
+        /* 相機畫面與掃描區域 */
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            height: 280px;
+            margin: 0 auto 12px auto;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            border: 1px solid #555;
+        }
+
+        #reader {
+            width: 100%;
+            height: 100%;
+        }
+        #reader button, #reader select { display: none !important; }
+        #reader video {
+            object-fit: cover !important;
+            width: 100% !important;
+            height: 100% !important;
+            filter: contrast(1.2) brightness(1.02);
+        }
+
+        .laser-line {
+            position: absolute;
+            left: 5%;
+            width: 90%;
+            height: 2px;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            z-index: 10;
+            animation: laserScan 1.6s infinite ease-in-out;
+            pointer-events: none;
+            display: none;
+        }
+
+        @keyframes laserScan {
+            0% { top: 15%; opacity: 0.3; }
+            50% { top: 85%; opacity: 1; }
+            100% { top: 15%; opacity: 0.3; }
+        }
+
+        .status-tracker {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            right: 8px;
+            background: rgba(17, 24, 39, 0.9);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            text-align: center;
+            z-index: 20;
+        }
+        .status-tag {
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #374151;
+            font-weight: bold;
+        }
+        .status-tag.ok {
+            background: #10b981;
+            color: white;
+        }
+
+        .toast-notify {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            background: rgba(17, 24, 39, 0.92);
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            display: none;
+        }
+
+        /* 控制面板 */
+        .panel-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .section-label {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #34d399;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .option-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .opt-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .opt-btn.active {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: #fff;
+        }
+
+        .custom-denom-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .custom-denom-row input {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* 按鈕群組 */
+        .main-btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .btn-start {
+            flex: 1;
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-stop {
+            flex: 1;
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+
+        .tool-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .clean-btn {
+            width: 100%;
+            background-color: var(--warning);
+            color: #121212;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .sync-btn {
+            width: 100%;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .deleteAll-btn {
+            width: 100%;
+            background-color: #b91c1c;
+            color: white;
+            border: 1px solid #ef4444;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        #scan-status {
+            text-align: center;
+            color: #34d399;
+            font-weight: bold;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            min-height: 20px;
+        }
+
+        /* 資料夾與卡片樣式 */
+        .folder-tabs-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .folder-tab {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .folder-tab.active {
+            background-color: #ef4444;
+            color: #fff;
+            font-weight: bold;
+            border-color: #ef4444;
+        }
+
+        .batch-danger-btn {
+            width: 100%;
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .card-item {
+            background: linear-gradient(135deg, #2a1b1b, #1e1e1e);
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #552222;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.1);
+        }
+        .card-item.archived {
+            opacity: 0.75;
+            border-color: #444;
+            background: #1e1e1e;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge-channel {
+            background-color: #ef4444;
+            color: white;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .badge-synced {
+            background-color: var(--success);
+            color: #121212;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 4px;
+        }
+        .badge-archived {
+            background-color: #6b7280;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .denom-tag {
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-left: 6px;
+            font-size: 1.1rem;
+        }
+
+        .btn-edit-denom {
+            background: #2a2a2a;
+            border: 1px solid #555;
+            color: #fbbf24;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin-left: 6px;
+        }
+
+        /* 卡片內容排版：左側資訊與密碼，右側 QR Code */
+        .card-content-grid {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .card-info-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+        .info-row span.label {
+            color: #aaa;
+            font-size: 0.75rem;
+        }
+        .info-row span.val {
+            font-family: monospace;
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.95rem;
+            background: #111;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .card-qrcode-side {
+            background: #ffffff;
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .qrcode-img-box img {
+            display: block;
+            width: 100px !important;
+            height: 100px !important;
+        }
+
+        /* 用戶指定的紅色警語 */
+        .custom-warning-text {
+            color: #ff4d4d;
+            font-size: 0.78rem;
+            font-weight: bold;
+            line-height: 1.4;
+            border-top: 1px dashed rgba(239, 68, 68, 0.3);
+            padding-top: 6px;
+            margin-top: 2px;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 4px;
+        }
+        .btn-action {
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            flex: 1;
+        }
+        .archive-btn { 
+            background-color: #3b82f6; 
+            color: white; 
+        }
+        .delete-btn {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        /* 工作日誌面板 */
+        .hud-console {
+            background: #111827;
+            color: #10b981;
+            font-family: monospace;
+            font-size: 0.78rem;
+            padding: 10px;
+            border-radius: 8px;
+            height: 180px;
+            overflow-y: auto;
+            line-height: 1.5;
+            border: 1px solid #1f2937;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>💳 MyCard 智慧點數皮夾</h1>
+    </div>
+
+    <!-- 統計面板 -->
+    <div class="stats-panel">
+        <div class="stat-item">
+            <div>有效卡片數</div>
+            <div id="statCount">0 張</div>
+        </div>
+        <div class="stat-item">
+            <div>總點數價值</div>
+            <div id="statTotal">點數 0</div>
+        </div>
+    </div>
+
+    <!-- 1、2 選擇面額與啟動連續鏡頭掃描 -->
+    <div class="panel-card">
+        <div class="section-label" style="cursor: default;">1. 選擇本次掃描點數面額</div>
+        <div class="option-group" id="denomGroup">
+            <button class="opt-btn" onclick="setDenom(50)">50點</button>
+            <button class="opt-btn active" onclick="setDenom(100)">100點</button>
+            <button class="opt-btn" onclick="setDenom(150)">150點</button>
+            <button class="opt-btn" onclick="setDenom(300)">300點</button>
+            <button class="opt-btn" onclick="setDenom(500)">500點</button>
+            <button class="opt-btn" onclick="setDenom(1000)">1000點</button>
+        </div>
+        <div class="custom-denom-row">
+            <input type="number" id="customDenomInput" placeholder="或輸入自訂點數面額..." oninput="selectCustomDenom(this.value)">
+        </div>
+
+        <div class="main-btn-group">
+            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 2、啟動連續鏡頭掃描 QR Code</button>
+            <button class="btn-stop" id="stopBtn" onclick="stopCamera()">關閉鏡頭</button>
+        </div>
+    </div>
+
+    <!-- 相機畫面區 -->
+    <div class="camera-wrapper" id="cameraWrapper">
+        <div class="laser-line" id="laserLine"></div>
+        <div class="status-tracker">
+            <span id="scanTag" class="status-tag">請將鏡頭對準 MyCard 刮開後的 QR Code</span>
+        </div>
+        <div class="toast-notify" id="toastNotify">
+            <span id="toastMsg">🎉 點數卡成功入庫</span>
+        </div>
+        <div id="reader"></div>
+    </div>
+
+    <div id="scan-status"></div>
+
+    <!-- 工具按鈕區 -->
+    <div class="tool-btn-group">
+        <button class="clean-btn" onclick="removeDuplicateCards()">🧹 一鍵清除本機重複卡片</button>
+        <button class="sync-btn" onclick="syncUnsentCardsToGoogleSheets()">📤 智慧同步至 Google 表單</button>
+    </div>
+
+    <!-- 3、卡片收納資料夾 -->
+    <div class="panel-card">
+        <div class="section-label" onclick="toggleFolderPanel()">
+            <span>📁 3、MyCard 卡片收納資料夾</span>
+            <span id="folderToggleIcon">▼</span>
+        </div>
+        <div id="folderContent">
+            <div class="folder-tabs-grid" id="folderTabs"></div>
+            
+            <button id="batchDeleteBtn" class="batch-danger-btn" style="display: none;" onclick="deleteAllArchivedCards()">
+                💥 一鍵清空所有已封存卡片
+            </button>
+
+            <div class="card-list" id="cardList"></div>
+        </div>
+    </div>
+
+    <!-- 4、工作日誌面板 -->
+    <div class="panel-card">
+        <div class="section-label" style="color: var(--text-sub); cursor: default;">4、工作日誌面板：</div>
+        <div class="hud-console" id="hudConsole">
+            <div>[系統初始化] MyCard 智慧點數皮夾模組載入完成...</div>
+        </div>
+    </div>
+
+    <!-- 一鍵清除本機所有卡片 -->
+    <button class="deleteAll-btn" onclick="deleteAllCardsEver()">💥 5、一鍵清除本機所有卡片</button>
+
+    <script>
+        // 全域狀態變數
+        let currentDenom = 100;
+        let currentFolder = 'all';
+
+        let html5QrcodeScanner = null;
+        let isProcessing = false;
+        let isCoolingDown = false;
+        const COOLDOWN_MS = 2500; // 成功掃描後的冷卻時間
+
+        let lastScanTimestamp = 0;
+        const SCAN_THROTTLE_MS = 150;
+
+        const STORAGE_KEY = 'mycard_point_cards_v1';
+        const GOOGLE_SCRIPT_URL = ""; // 可填入你的 Google Apps Script 部署網址
+
+        function log(msg) {
+            const consoleEl = document.getElementById('hudConsole');
+            if (!consoleEl) return;
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.innerText = `[${time}] ${msg}`;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderFolders();
+            renderCards();
+        });
+
+        function toggleFolderPanel() {
+            const content = document.getElementById('folderContent');
+            const icon = document.getElementById('folderToggleIcon');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.innerText = '▼';
+            } else {
+                content.style.display = 'none';
+                icon.innerText = '▲';
+            }
+        }
+
+        function setDenom(val) {
+            currentDenom = Number(val);
+            updateBtnGroup('denomGroup', val);
+            document.getElementById('customDenomInput').value = '';
+        }
+
+        function selectCustomDenom(val) {
+            if (val) {
+                currentDenom = parseInt(val) || 0;
+                document.querySelectorAll('#denomGroup .opt-btn').forEach(btn => btn.classList.remove('active'));
+            }
+        }
+
+        function updateBtnGroup(groupId, matchText) {
+            const btns = document.querySelectorAll(`#${groupId} .opt-btn`);
+            btns.forEach(btn => {
+                if (btn.innerText.includes(matchText)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function getCards() {
+            const cards = localStorage.getItem(STORAGE_KEY);
+            return cards ? JSON.parse(cards) : [];
+        }
+
+        function saveCards(cards, shouldRender = true) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+            if (shouldRender) {
+                renderFolders();
+                renderCards();
+            }
+        }
+
+        // 音效提示
+        function playSuccessBeep() {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = 880;
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+            } catch (e) {}
+        }
+
+        function playDuplicateBeep() {
+            if (navigator.vibrate) navigator.vibrate(300);
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.value = 220;
+                osc.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.25);
+            } catch (e) {}
+        }
+
+        // 啟動相機
+        async function startCamera() {
+            log("► 啟動連續相機掃描 QR Code...");
+            if (typeof Html5Qrcode === 'undefined') {
+                alert("掃碼元件載入中，請稍後再試！");
+                return;
+            }
+
+            const wrapper = document.getElementById('cameraWrapper');
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'block';
+            wrapper.style.display = 'block';
+            document.getElementById('laserLine').style.display = 'block';
+
+            try {
+                if (!html5QrcodeScanner) {
+                    html5QrcodeScanner = new Html5Qrcode("reader");
+                }
+
+                const config = { 
+                    fps: 30, 
+                    qrbox: { width: 220, height: 220 },
+                    videoConstraints: {
+                        facingMode: "environment",
+                        width: { min: 1280, ideal: 1920 },
+                        height: { min: 720, ideal: 1080 }
+                    }
+                };
+
+                await html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    () => {}
+                );
+                log("📷 鏡頭已啟動！請將 QR Code 對準掃描框");
+            } catch (err) {
+                log("❌ 開啟鏡頭失敗: " + err);
+                alert("相機開啟失敗！請確認已授權相機權限且為 HTTPS 環境。");
+                stopCamera();
+            }
+        }
+
+        async function stopCamera() {
+            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                try {
+                    await html5QrcodeScanner.stop();
+                    log("相機已關閉。");
+                } catch (e) { console.error(e); }
+            }
+            document.getElementById('cameraWrapper').style.display = 'none';
+            document.getElementById('laserLine').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('stopBtn').style.display = 'none';
+            isCoolingDown = false;
+        }
+
+        // 解析 QR Code 內容：格式範例 [MyCard]|FTUJAA010218|LTUC457UVGXV
+        function parseMyCardQRCode(text) {
+            let cleanText = text.trim();
+            let parts = cleanText.split('|');
+            if (parts.length >= 3) {
+                return {
+                    raw: cleanText,
+                    cardNo: parts[1].trim(),
+                    password: parts[2].trim()
+                };
+            }
+            // 若格式不同但包含資料，退回到整體比對
+            return {
+                raw: cleanText,
+                cardNo: cleanText,
+                password: "未知密碼"
+            };
+        }
+
+        function isCardExists(cardNo) {
+            const cards = getCards();
+            return cards.some(c => c.cardNo === cardNo);
+        }
+
+        function onScanSuccess(decodedText) {
+            const now = Date.now();
+            if (now - lastScanTimestamp < SCAN_THROTTLE_MS) return;
+            lastScanTimestamp = now;
+
+            if (isProcessing || isCoolingDown) return;
+
+            const parsed = parseMyCardQRCode(decodedText);
+
+            if (isCardExists(parsed.cardNo)) {
+                log(`⚠️ 卡號 [${parsed.cardNo}] 已存在資料庫，自動拒絕`);
+                showToast(`⚠️ 此點數卡已收錄過！`);
+                playDuplicateBeep();
+                return;
+            }
+
+            commitNewCard(parsed);
+        }
+
+        function commitNewCard(parsed) {
+            isProcessing = true;
+            const cards = getCards();
+
+            const newCard = {
+                id: Date.now(),
+                rawQr: parsed.raw,
+                cardNo: parsed.cardNo,
+                password: parsed.password,
+                denom: currentDenom,
+                channel: "MyCard 會員點數",
+                status: "active",
+                synced: false,
+                date: new Date().toLocaleDateString()
+            };
+
+            cards.unshift(newCard);
+            saveCards(cards);
+
+            log(`⚡️ 成功收錄 MyCard！卡號:[${parsed.cardNo}] 密碼:[${parsed.password}]`);
+            showToast(`🎉 成功收錄 ${currentDenom} 點卡片！`);
+            playSuccessBeep();
+
+            startCoolDown();
+        }
+
+        function startCoolDown() {
+            isCoolingDown = true;
+            const laser = document.getElementById('laserLine');
+            const scanTag = document.getElementById('scanTag');
+
+            if (laser) laser.style.display = 'none';
+            if (scanTag) { scanTag.innerText = '⏳ 換卡冷卻中，請換下一張...'; scanTag.className = 'status-tag'; }
+
+            setTimeout(() => {
+                isCoolingDown = false;
+                isProcessing = false;
+                document.getElementById('toastNotify').style.display = 'none';
+                if (laser) laser.style.display = 'block';
+                if (scanTag) { scanTag.innerText = '請將鏡頭對準 MyCard 刮開後的 QR Code'; scanTag.className = 'status-tag ok'; }
+                log("✨ 冷卻完畢，準備接收下一張卡片！");
+            }, COOLDOWN_MS);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotify');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.style.display = 'flex';
+        }
+
+        function editCardDenom(id) {
+            let cards = getCards();
+            const card = cards.find(c => c.id === id);
+            if (!card) return;
+
+            const input = prompt(`修改點數面額 (目前為 ${card.denom} 點)：`, card.denom);
+            if (input !== null) {
+                const newDenom = parseInt(input.trim(), 10);
+                if (!isNaN(newDenom) && newDenom >= 0) {
+                    card.denom = newDenom;
+                    saveCards(cards);
+                    log(`✏️ 卡片 [${card.cardNo}] 點數面額修訂為 ${newDenom} 點`);
+                    alert(`點數面額已成功修改為 ${newDenom} 點`);
+                } else {
+                    alert("請輸入有效的數字！");
+                }
+            }
+        }
+
+        function deleteSingleCard(id) {
+            if (confirm("⚠️ 確定要永久刪除此張點數卡嗎？")) {
+                let cards = getCards();
+                cards = cards.filter(c => c.id !== id);
+                saveCards(cards);
+                log(`🗑️ 永久刪除卡片 ID: ${id}`);
+            }
+        }
+
+        function deleteAllArchivedCards() {
+            let cards = getCards();
+            const archivedCount = cards.filter(c => c.status === 'archived').length;
+            if (archivedCount === 0) {
+                alert("目前封存資料夾內沒有卡片！");
+                return;
+            }
+            if (confirm(`💥 確定要永久刪除已封存的全部 ${archivedCount} 張卡片嗎？`)) {
+                cards = cards.filter(c => c.status !== 'archived');
+                saveCards(cards);
+                log(`💥 一鍵清空所有已封存卡片 (${archivedCount} 張)`);
+                alert(`已成功清空！`);
+            }
+        }
+
+        function deleteAllCardsEver() {
+            const cards = getCards();
+            if (cards.length === 0) {
+                alert("目前本機沒有任何卡片！");
+                return;
+            }
+            if (confirm(`🚨 確定要刪除本機【全部 ${cards.length} 張 MyCard 卡片】嗎？全數將會歸零！`)) {
+                localStorage.removeItem(STORAGE_KEY);
+                renderFolders();
+                renderCards();
+                log(`💥 一鍵清空本機所有卡片`);
+                alert("已全部清空！");
+            }
+        }
+
+        function removeDuplicateCards() {
+            let cards = getCards();
+            const seen = new Set();
+            let uniqueCards = [];
+            let duplicateCount = 0;
+
+            cards.forEach(card => {
+                if (seen.has(card.cardNo)) {
+                    duplicateCount++;
+                } else {
+                    seen.add(card.cardNo);
+                    uniqueCards.push(card);
+                }
+            });
+
+            if (duplicateCount === 0) {
+                alert("本機沒有發現重複卡號的卡片！");
+                return;
+            }
+
+            if (confirm(`發現 ${duplicateCount} 張重複卡片，是否確認清除？`)) {
+                saveCards(uniqueCards);
+                alert(`已移除 ${duplicateCount} 張重複卡片。`);
+                log(`🧹 清除重複卡片 ${duplicateCount} 張`);
+            }
+        }
+
+        async function syncUnsentCardsToGoogleSheets() {
+            if (!GOOGLE_SCRIPT_URL) {
+                alert("尚未設定 Google Script 部署網址！");
+                return;
+            }
+            alert("正在連線至 Google 表單同步...(可依需求串接)");
+        }
+
+        function toggleArchive(id) {
+            let cards = getCards();
+            const card = cards.find(c => c.id === id);
+            if (card) {
+                card.status = card.status === 'active' ? 'archived' : 'active';
+                saveCards(cards);
+                log(`📦 卡片 [${card.cardNo}] 狀態切換為：${card.status}`);
+            }
+        }
+
+        function switchFolder(folder) {
+            currentFolder = folder;
+            renderFolders();
+            renderCards();
+        }
+
+        function updateStats() {
+            const cards = getCards();
+            const activeCards = cards.filter(c => c.status === 'active');
+            const totalPoints = activeCards.reduce((sum, c) => sum + Number(c.denom), 0);
+            
+            document.getElementById('statCount').innerText = `${activeCards.length} 張`;
+            document.getElementById('statTotal').innerText = `點數 ${totalPoints}`;
+        }
+
+        function renderFolders() {
+            const cards = getCards();
+            const tabsEl = document.getElementById('folderTabs');
+            
+            const activeCount = cards.filter(c => c.status === 'active').length;
+            const archivedCount = cards.filter(c => c.status === 'archived').length;
+            
+            let html = `<div class="folder-tab ${currentFolder === 'all' ? 'active' : ''}" onclick="switchFolder('all')">全部 (${activeCount})</div>`;
+
+            const denoms = [...new Set(cards.filter(c => c.status === 'active').map(c => c.denom))].sort((a,b) => a-b);
+            denoms.forEach(d => {
+                const count = cards.filter(c => c.status === 'active' && c.denom === d).length;
+                html += `<div class="folder-tab ${currentFolder == d ? 'active' : ''}" onclick="switchFolder('${d}')">${d}點 (${count})</div>`;
+            });
+
+            html += `<div class="folder-tab ${currentFolder === 'archived' ? 'active' : ''}" onclick="switchFolder('archived')">已封存 (${archivedCount})</div>`;
+            tabsEl.innerHTML = html;
+
+            const batchBtn = document.getElementById('batchDeleteBtn');
+            if (batchBtn) {
+                batchBtn.style.display = (currentFolder === 'archived' && archivedCount > 0) ? 'block' : 'none';
+            }
+        }
+
+        function renderCards() {
+            const listEl = document.getElementById('cardList');
+            const cards = getCards();
+            updateStats();
+            
+            let filtered = cards;
+            if (currentFolder === 'all') {
+                filtered = cards.filter(c => c.status === 'active');
+            } else if (currentFolder === 'archived') {
+                filtered = cards.filter(c => c.status === 'archived');
+            } else {
+                filtered = cards.filter(c => c.status === 'active' && c.denom == currentFolder);
+            }
+            
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px 0;">此分類目前沒有卡片</div>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            filtered.forEach(card => {
+                const isArchived = card.status === 'archived';
+                const item = document.createElement('div');
+                item.className = `card-item ${isArchived ? 'archived' : ''}`;
+                
+                item.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <span class="badge-channel">${card.channel}</span>
+                            <span class="denom-tag">${card.denom} 點</span>
+                            <button class="btn-edit-denom" onclick="editCardDenom(${card.id})">✏️ 修改</button>
+                            ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
+                        </div>
+                        <div>
+                            ${isArchived ? `<span class="badge-archived">已使用 (封存)</span>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- 卡片主體排版：左側卡號密碼，右側 QR Code -->
+                    <div class="card-content-grid">
+                        <div class="card-info-side">
+                            <div class="info-row">
+                                <span class="label">卡號：</span><br>
+                                <span class="val">${card.cardNo}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">密碼：</span><br>
+                                <span class="val">${card.password}</span>
+                            </div>
+                        </div>
+                        <div class="card-qrcode-side">
+                            <div id="qrcode-${card.id}" class="qrcode-img-box"></div>
+                            <div style="font-size: 0.65rem; color: #666; margin-top: 2px;">QR Code</div>
+                        </div>
+                    </div>
+
+                    <!-- 指定加入的紅色警告文字 -->
+                    <div class="custom-warning-text">
+                        會員點數限儲值至my card會員帳號<br>
+                        請點選App下方「儲值購買」後，掃描QR Code
+                    </div>
+
+                    <div style="font-size: 0.75rem; color: #888; text-align: right;">
+                        收錄日期：${card.date}
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn-action archive-btn" onclick="toggleArchive(${card.id})">${isArchived ? '還原卡片' : '標記已使用 (封存)'}</button>
+                        ${isArchived ? `<button class="btn-action delete-btn" onclick="deleteSingleCard(${card.id})">刪除</button>` : ''}
+                    </div>
+                `;
+                listEl.appendChild(item);
+
+                // 即時動態產生 QR Code 圖片
+                setTimeout(() => {
+                    const qrcodeContainer = document.getElementById(`qrcode-${card.id}`);
+                    if (qrcodeContainer && qrcodeContainer.childElementCount === 0) {
+                        new QRCode(qrcodeContainer, {
+                            text: card.rawQr,
+                            width: 100,
+                            height: 100,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    }
+                }, 30);
+            });
+        }
+    </script>
+</body>
+</html>
