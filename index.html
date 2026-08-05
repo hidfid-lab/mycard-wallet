@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyCard 智慧點數皮夾 [v1.2.1-focus]</title>
+    <title>MyCard 智慧點數皮夾 [v1.2.2-native]</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <!-- 引入 jsQR 用於純前端高效率解析視訊畫面中的 QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -70,7 +71,7 @@
             position: relative;
             width: 100%;
             max-width: 480px;
-            height: 260px;
+            height: 280px;
             margin: 0 auto 8px auto;
             border-radius: 8px;
             overflow: hidden;
@@ -80,15 +81,11 @@
             border: 1px solid #555;
         }
 
-        #reader {
+        #webcamVideo {
             width: 100%;
             height: 100%;
-        }
-        #reader button, #reader select { display: none !important; }
-        #reader video {
-            object-fit: cover !important;
-            width: 100% !important;
-            height: 100% !important;
+            object-fit: cover;
+            display: block;
         }
 
         .laser-line {
@@ -101,7 +98,6 @@
             z-index: 10;
             animation: laserScan 1.6s infinite ease-in-out;
             pointer-events: none;
-            display: none;
         }
 
         @keyframes laserScan {
@@ -476,7 +472,7 @@
 <body>
 
     <div class="header">
-        <h1>💳 MyCard 智慧點數皮夾 [v1.2.1-focus]</h1>
+        <h1>💳 MyCard 智慧點數皮夾 [v1.2.2-native]</h1>
     </div>
 
     <div class="stats-panel">
@@ -505,20 +501,21 @@
         </div>
 
         <div class="main-btn-group">
-            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 2、啟動連續鏡頭掃描 QR Code</button>
+            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 2、啟動極速原生掃描鏡頭</button>
             <button class="btn-stop" id="stopBtn" onclick="stopCamera()">關閉鏡頭</button>
         </div>
     </div>
 
     <div class="camera-wrapper" id="cameraWrapper">
-        <div class="laser-line" id="laserLine"></div>
+        <div class="laser-line"></div>
         <div class="status-tracker">
             <span id="scanTag" class="status-tag">請將鏡頭對準 QR Code 進行掃描</span>
         </div>
         <div class="toast-notify" id="toastNotify">
             <span id="toastMsg">🎉 點數卡成功入庫</span>
         </div>
-        <div id="reader"></div>
+        <video id="webcamVideo" autoplay playsinline muted></video>
+        <canvas id="scanCanvas" style="display:none;"></canvas>
     </div>
 
     <div class="tool-btn-group">
@@ -545,7 +542,7 @@
     <div class="panel-card">
         <div class="section-label" style="color: var(--text-sub); cursor: default;">4、工作日誌面板：</div>
         <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] v1.2.1-focus 載入完成...</div>
+            <div>[系統初始化] v1.2.2-native 原生核心載入完成...</div>
         </div>
     </div>
 
@@ -555,13 +552,11 @@
         let currentDenom = 100;
         let currentFolder = 'all';
 
-        let html5QrcodeScanner = null;
+        let mediaStream = null;
+        let scanInterval = null;
         let isProcessing = false;
         let isCoolingDown = false;
         const COOLDOWN_MS = 2200; 
-
-        let lastScanTimestamp = 0;
-        const SCAN_THROTTLE_MS = 100;
 
         const STORAGE_KEY = 'mycard_point_cards_v1';
         const GOOGLE_SCRIPT_URL = ""; 
@@ -674,59 +669,71 @@
 
         async function startCamera() {
             initAudio();
-            log("► 啟動極速掃描引擎...");
-            if (typeof Html5Qrcode === 'undefined') {
-                alert("掃碼元件載入中，請稍後再試！");
-                return;
-            }
-
-            const wrapper = document.getElementById('cameraWrapper');
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('stopBtn').style.display = 'block';
-            wrapper.style.display = 'block';
-            document.getElementById('laserLine').style.display = 'block';
-
+            log("► 正在請求相機權限...");
+            
             try {
-                if (!html5QrcodeScanner) {
-                    html5QrcodeScanner = new Html5Qrcode("reader");
-                }
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
 
-                // 針對極速感應調整框體與掃描頻率
-                const config = { 
-                    fps: 40, 
-                    qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        let minSize = Math.min(viewfinderWidth, viewfinderHeight);
-                        return { width: Math.floor(minSize * 0.85), height: Math.floor(minSize * 0.85) };
-                    },
-                    aspectRatio: 1.0
-                };
+                const videoEl = document.getElementById('webcamVideo');
+                videoEl.srcObject = mediaStream;
+                await videoEl.play();
 
-                await html5QrcodeScanner.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    () => {}
-                );
-                log("📷 鏡頭已啟動並進入實時監控！");
+                document.getElementById('cameraWrapper').style.display = 'block';
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('stopBtn').style.display = 'block';
+
+                log("📷 原生相機串流成功，開始極速偵測...");
+                startNativeScanning();
+
             } catch (err) {
-                log("❌ 開啟鏡頭失敗: " + err);
-                alert("相機開啟失敗！請確認已授權相機權限且為 HTTPS 環境。");
-                stopCamera();
+                log("❌ 開啟相機失敗: " + err);
+                alert("相機開啟失敗！請確認瀏覽器已授權相機權限，且必須在 HTTPS 網址下執行。");
             }
         }
 
-        async function stopCamera() {
-            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-                try {
-                    await html5QrcodeScanner.stop();
-                    log("相機已關閉。");
-                } catch (e) { console.error(e); }
+        function startNativeScanning() {
+            const video = document.getElementById('webcamVideo');
+            const canvas = document.getElementById('scanCanvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+            if (scanInterval) clearInterval(scanInterval);
+
+            scanInterval = setInterval(() => {
+                if (isProcessing || isCoolingDown) return;
+                if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    onScanSuccess(code.data);
+                }
+            }, 120); // 每秒約 8-9 次高頻擷取
+        }
+
+        function stopCamera() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
             }
             document.getElementById('cameraWrapper').style.display = 'none';
-            document.getElementById('laserLine').style.display = 'none';
             document.getElementById('startBtn').style.display = 'block';
             document.getElementById('stopBtn').style.display = 'none';
             isCoolingDown = false;
+            isProcessing = false;
+            log("相機已關閉。");
         }
 
         function parseMyCardQRCode(text) {
@@ -752,10 +759,6 @@
         }
 
         function onScanSuccess(decodedText) {
-            const now = Date.now();
-            if (now - lastScanTimestamp < SCAN_THROTTLE_MS) return;
-            lastScanTimestamp = now;
-
             if (isProcessing || isCoolingDown) return;
 
             const parsed = parseMyCardQRCode(decodedText);
@@ -764,6 +767,7 @@
                 log(`⚠️ 卡號 [${parsed.cardNo}] 已存在資料庫`);
                 showToast(`⚠️ 此點數卡已收錄過！`);
                 playDuplicateBeep();
+                startCoolDown();
                 return;
             }
 
@@ -798,17 +802,13 @@
 
         function startCoolDown() {
             isCoolingDown = true;
-            const laser = document.getElementById('laserLine');
             const scanTag = document.getElementById('scanTag');
-
-            if (laser) laser.style.display = 'none';
             if (scanTag) { scanTag.innerText = '⏳ 換卡冷卻中...'; scanTag.className = 'status-tag'; }
 
             setTimeout(() => {
                 isCoolingDown = false;
                 isProcessing = false;
                 document.getElementById('toastNotify').style.display = 'none';
-                if (laser) laser.style.display = 'block';
                 if (scanTag) { scanTag.innerText = '請將鏡頭對準 QR Code 進行掃描'; scanTag.className = 'status-tag'; }
                 log("✨ 冷卻完畢，準備接收下一張！");
             }, COOLDOWN_MS);
