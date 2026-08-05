@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyCard 智慧點數皮夾</title>
+    <title>MyCard 智慧點數皮夾 [v1.2.1-focus]</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -32,15 +32,15 @@
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            padding: 12px;
+            padding: 8px;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .header h1 {
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             margin: 0;
             color: #ff4d4d;
             font-weight: 800;
@@ -48,20 +48,20 @@
 
         .stats-panel {
             background-color: var(--card-bg);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-around;
             text-align: center;
             border: 1px solid var(--border-color);
         }
         .stat-item div:first-child {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-sub);
         }
         .stat-item div:last-child {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: bold;
             color: #34d399;
         }
@@ -70,9 +70,9 @@
             position: relative;
             width: 100%;
             max-width: 480px;
-            height: 300px;
-            margin: 0 auto 12px auto;
-            border-radius: 12px;
+            height: 260px;
+            margin: 0 auto 8px auto;
+            border-radius: 8px;
             overflow: hidden;
             background-color: #000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -112,14 +112,14 @@
 
         .status-tracker {
             position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
+            bottom: 6px;
+            left: 6px;
+            right: 6px;
             background: rgba(17, 24, 39, 0.9);
             color: #fff;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
             text-align: center;
             z-index: 20;
         }
@@ -133,14 +133,14 @@
 
         .toast-notify {
             position: absolute;
-            top: 8px;
-            left: 8px;
-            right: 8px;
+            top: 6px;
+            left: 6px;
+            right: 6px;
             background: rgba(17, 24, 39, 0.92);
             color: #ffffff;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.8rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -150,17 +150,17 @@
 
         .panel-card {
             background: var(--card-bg);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
             border: 1px solid var(--border-color);
         }
 
         .section-label {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: bold;
             color: #34d399;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -171,16 +171,16 @@
         .option-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
+            gap: 4px;
+            margin-bottom: 6px;
         }
         .opt-btn {
             background: #2a2a2a;
             border: 1px solid #444;
             color: #fff;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
             font-weight: bold;
             cursor: pointer;
         }
@@ -192,32 +192,32 @@
 
         .custom-denom-row {
             display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 6px;
+            margin-bottom: 6px;
         }
         .custom-denom-row input {
             flex: 1;
             background: #2a2a2a;
             border: 1px solid #444;
             color: white;
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 0.9rem;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
         }
 
         .main-btn-group {
             display: flex;
-            gap: 8px;
-            margin-top: 10px;
+            gap: 6px;
+            margin-top: 6px;
         }
         .btn-start {
             flex: 1;
             background: var(--success);
             color: white;
             border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
             font-weight: bold;
             cursor: pointer;
         }
@@ -226,9 +226,9 @@
             background: var(--danger);
             color: white;
             border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
             font-weight: bold;
             cursor: pointer;
             display: none;
@@ -237,17 +237,17 @@
         .tool-btn-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 8px;
         }
         .clean-btn {
             width: 100%;
             background-color: var(--warning);
             color: #121212;
             border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
         }
@@ -256,9 +256,9 @@
             background-color: #3b82f6;
             color: white;
             border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.95rem;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
         }
@@ -267,36 +267,27 @@
             background-color: #b91c1c;
             color: white;
             border: 1px solid #ef4444;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 12px;
-        }
-
-        #scan-status {
-            text-align: center;
-            color: #34d399;
-            font-weight: bold;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            min-height: 20px;
+            margin-top: 8px;
         }
 
         .folder-tabs-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 8px;
         }
         .folder-tab {
             background-color: #2a2a2a;
             border: 1px solid #444;
             color: #aaa;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
             cursor: pointer;
         }
         .folder-tab.active {
@@ -311,28 +302,28 @@
             background-color: var(--danger);
             color: white;
             border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .card-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
         }
         .card-item {
             background: linear-gradient(135deg, #2a1b1b, #1e1e1e);
-            padding: 14px;
-            border-radius: 10px;
+            padding: 10px;
+            border-radius: 8px;
             border: 1px solid #552222;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.1);
+            gap: 6px;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.1);
         }
         .card-item.archived {
             opacity: 0.75;
@@ -348,80 +339,80 @@
             background-color: #ef4444;
             color: white;
             font-weight: bold;
-            padding: 2px 6px;
+            padding: 2px 5px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         .badge-synced {
             background-color: var(--success);
             color: #121212;
             font-weight: bold;
-            padding: 2px 6px;
+            padding: 2px 5px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             margin-left: 4px;
         }
         .badge-archived {
             background-color: #6b7280;
             color: white;
-            padding: 2px 6px;
+            padding: 2px 5px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
 
         .denom-tag {
             font-weight: bold;
             color: #ff6b6b;
             margin-left: 6px;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
 
         .btn-edit-denom {
             background: #2a2a2a;
             border: 1px solid #555;
             color: #fbbf24;
-            padding: 2px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             cursor: pointer;
-            margin-left: 6px;
+            margin-left: 4px;
         }
 
         .card-content-grid {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             align-items: center;
             background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 8px;
+            padding: 8px;
+            border-radius: 6px;
         }
         .card-info-side {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            font-size: 0.85rem;
+            gap: 4px;
+            font-size: 0.8rem;
             word-break: break-all;
         }
         .info-row span.label {
             color: #aaa;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         .info-row span.val {
             font-family: monospace;
             color: #fff;
             font-weight: bold;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             background: #111;
-            padding: 2px 6px;
+            padding: 2px 4px;
             border-radius: 4px;
             display: inline-block;
-            margin-top: 2px;
+            margin-top: 1px;
         }
         .card-qrcode-side {
             background: #ffffff;
-            padding: 8px;
-            border-radius: 6px;
+            padding: 6px;
+            border-radius: 4px;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -430,32 +421,32 @@
         }
         .qrcode-img-box img {
             display: block;
-            width: 100px !important;
-            height: 100px !important;
+            width: 90px !important;
+            height: 90px !important;
         }
 
         .custom-warning-text {
             color: #ff4d4d;
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             font-weight: bold;
-            line-height: 1.4;
+            line-height: 1.3;
             border-top: 1px dashed rgba(239, 68, 68, 0.3);
-            padding-top: 6px;
-            margin-top: 2px;
+            padding-top: 4px;
+            margin-top: 1px;
         }
 
         .action-row {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
-            margin-top: 4px;
+            margin-top: 2px;
         }
         .btn-action {
             border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
+            padding: 6px 10px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: bold;
             flex: 1;
         }
@@ -472,12 +463,12 @@
             background: #111827;
             color: #10b981;
             font-family: monospace;
-            font-size: 0.78rem;
-            padding: 10px;
-            border-radius: 8px;
-            height: 180px;
+            font-size: 0.75rem;
+            padding: 8px;
+            border-radius: 6px;
+            height: 120px;
             overflow-y: auto;
-            line-height: 1.5;
+            line-height: 1.4;
             border: 1px solid #1f2937;
         }
     </style>
@@ -485,7 +476,7 @@
 <body>
 
     <div class="header">
-        <h1>💳 MyCard 智慧點數皮夾</h1>
+        <h1>💳 MyCard 智慧點數皮夾 [v1.2.1-focus]</h1>
     </div>
 
     <div class="stats-panel">
@@ -530,8 +521,6 @@
         <div id="reader"></div>
     </div>
 
-    <div id="scan-status"></div>
-
     <div class="tool-btn-group">
         <button class="clean-btn" onclick="removeDuplicateCards()">🧹 一鍵清除本機重複卡片</button>
         <button class="sync-btn" onclick="syncUnsentCardsToGoogleSheets()">📤 智慧同步至 Google 表單</button>
@@ -556,7 +545,7 @@
     <div class="panel-card">
         <div class="section-label" style="color: var(--text-sub); cursor: default;">4、工作日誌面板：</div>
         <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] MyCard 智慧點數皮夾模組載入完成...</div>
+            <div>[系統初始化] v1.2.1-focus 載入完成...</div>
         </div>
     </div>
 
@@ -569,13 +558,23 @@
         let html5QrcodeScanner = null;
         let isProcessing = false;
         let isCoolingDown = false;
-        const COOLDOWN_MS = 2500; 
+        const COOLDOWN_MS = 2200; 
 
         let lastScanTimestamp = 0;
-        const SCAN_THROTTLE_MS = 150;
+        const SCAN_THROTTLE_MS = 100;
 
         const STORAGE_KEY = 'mycard_point_cards_v1';
         const GOOGLE_SCRIPT_URL = ""; 
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
 
         function log(msg) {
             const consoleEl = document.getElementById('hudConsole');
@@ -644,31 +643,38 @@
         function playSuccessBeep() {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
                 osc.type = 'sine';
                 osc.frequency.value = 880;
-                osc.connect(ctx.destination);
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(ctx.currentTime + 0.1);
+                osc.stop(audioCtx.currentTime + 0.12);
             } catch (e) {}
         }
 
         function playDuplicateBeep() {
             if (navigator.vibrate) navigator.vibrate(300);
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
                 osc.type = 'sawtooth';
                 osc.frequency.value = 220;
-                osc.connect(ctx.destination);
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(ctx.currentTime + 0.25);
+                osc.stop(audioCtx.currentTime + 0.2);
             } catch (e) {}
         }
 
         async function startCamera() {
-            log("► 啟動連續相機掃描 QR Code...");
+            initAudio();
+            log("► 啟動極速掃描引擎...");
             if (typeof Html5Qrcode === 'undefined') {
                 alert("掃碼元件載入中，請稍後再試！");
                 return;
@@ -685,19 +691,14 @@
                     html5QrcodeScanner = new Html5Qrcode("reader");
                 }
 
-                // 優化參數：擴大掃描範圍並強制開啟高畫質與自動對焦
+                // 針對極速感應調整框體與掃描頻率
                 const config = { 
-                    fps: 30, 
+                    fps: 40, 
                     qrbox: function(viewfinderWidth, viewfinderHeight) {
                         let minSize = Math.min(viewfinderWidth, viewfinderHeight);
-                        return { width: Math.floor(minSize * 0.75), height: Math.floor(minSize * 0.75) };
+                        return { width: Math.floor(minSize * 0.85), height: Math.floor(minSize * 0.85) };
                     },
-                    videoConstraints: {
-                        facingMode: "environment",
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                        advanced: [{ focusMode: "continuous" }]
-                    }
+                    aspectRatio: 1.0
                 };
 
                 await html5QrcodeScanner.start(
@@ -706,7 +707,7 @@
                     onScanSuccess,
                     () => {}
                 );
-                log("📷 鏡頭已啟動並開啟自動對焦！");
+                log("📷 鏡頭已啟動並進入實時監控！");
             } catch (err) {
                 log("❌ 開啟鏡頭失敗: " + err);
                 alert("相機開啟失敗！請確認已授權相機權限且為 HTTPS 環境。");
@@ -760,7 +761,7 @@
             const parsed = parseMyCardQRCode(decodedText);
 
             if (isCardExists(parsed.cardNo)) {
-                log(`⚠️ 卡號 [${parsed.cardNo}] 已存在資料庫，自動拒絕`);
+                log(`⚠️ 卡號 [${parsed.cardNo}] 已存在資料庫`);
                 showToast(`⚠️ 此點數卡已收錄過！`);
                 playDuplicateBeep();
                 return;
@@ -788,7 +789,7 @@
             cards.unshift(newCard);
             saveCards(cards);
 
-            log(`⚡️ 成功收錄 MyCard！卡號:[${parsed.cardNo}] 密碼:[${parsed.password}]`);
+            log(`⚡️ 成功收錄！卡號:[${parsed.cardNo}]`);
             showToast(`🎉 成功收錄 ${currentDenom} 點卡片！`);
             playSuccessBeep();
 
@@ -801,7 +802,7 @@
             const scanTag = document.getElementById('scanTag');
 
             if (laser) laser.style.display = 'none';
-            if (scanTag) { scanTag.innerText = '⏳ 換卡冷卻中，請換下一張...'; scanTag.className = 'status-tag'; }
+            if (scanTag) { scanTag.innerText = '⏳ 換卡冷卻中...'; scanTag.className = 'status-tag'; }
 
             setTimeout(() => {
                 isCoolingDown = false;
@@ -809,7 +810,7 @@
                 document.getElementById('toastNotify').style.display = 'none';
                 if (laser) laser.style.display = 'block';
                 if (scanTag) { scanTag.innerText = '請將鏡頭對準 QR Code 進行掃描'; scanTag.className = 'status-tag'; }
-                log("✨ 冷卻完畢，準備接收下一張卡片！");
+                log("✨ 冷卻完畢，準備接收下一張！");
             }, COOLDOWN_MS);
         }
 
@@ -830,7 +831,7 @@
                 if (!isNaN(newDenom) && newDenom >= 0) {
                     card.denom = newDenom;
                     saveCards(cards);
-                    log(`✏️ 卡片 [${card.cardNo}] 點數面額修訂為 ${newDenom} 點`);
+                    log(`✏️ 卡片面額修訂為 ${newDenom} 點`);
                     alert(`點數面額已成功修改為 ${newDenom} 點`);
                 } else {
                     alert("請輸入有效的數字！");
@@ -857,7 +858,7 @@
             if (confirm(`💥 確定要永久刪除已封存的全部 ${archivedCount} 張卡片嗎？`)) {
                 cards = cards.filter(c => c.status !== 'archived');
                 saveCards(cards);
-                log(`💥 一鍵清空所有已封存卡片 (${archivedCount} 張)`);
+                log(`💥 一鍵清空所有已封存卡片`);
                 alert(`已成功清空！`);
             }
         }
@@ -868,7 +869,7 @@
                 alert("目前本機沒有任何卡片！");
                 return;
             }
-            if (confirm(`🚨 確定要刪除本機【全部 ${cards.length} 張 MyCard 卡片】嗎？全數將會歸零！`)) {
+            if (confirm(`🚨 確定要刪除本機【全部 ${cards.length} 張 MyCard 卡片】嗎？`)) {
                 localStorage.removeItem(STORAGE_KEY);
                 renderFolders();
                 renderCards();
@@ -918,7 +919,7 @@
             if (card) {
                 card.status = card.status === 'active' ? 'archived' : 'active';
                 saveCards(cards);
-                log(`📦 卡片 [${card.cardNo}] 狀態切換為：${card.status}`);
+                log(`📦 卡片狀態切換為：${card.status}`);
             }
         }
 
@@ -976,7 +977,7 @@
             }
             
             if (filtered.length === 0) {
-                listEl.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 20px 0;">此分類目前沒有卡片</div>';
+                listEl.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 12px 0;">此分類目前沒有卡片</div>';
                 return;
             }
 
@@ -995,7 +996,7 @@
                             ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
                         </div>
                         <div>
-                            ${isArchived ? `<span class="badge-archived">已使用 (封存)</span>` : ''}
+                            ${isArchived ? `<span class="badge-archived">已使用</span>` : ''}
                         </div>
                     </div>
                     
@@ -1012,7 +1013,7 @@
                         </div>
                         <div class="card-qrcode-side">
                             <div id="qrcode-${card.id}" class="qrcode-img-box"></div>
-                            <div style="font-size: 0.65rem; color: #666; margin-top: 2px;">QR Code</div>
+                            <div style="font-size: 0.6rem; color: #666; margin-top: 1px;">QR Code</div>
                         </div>
                     </div>
 
@@ -1021,7 +1022,7 @@
                         請點選App下方「儲值購買」後，掃描QR Code
                     </div>
 
-                    <div style="font-size: 0.75rem; color: #888; text-align: right;">
+                    <div style="font-size: 0.7rem; color: #888; text-align: right;">
                         收錄日期：${card.date}
                     </div>
 
@@ -1037,8 +1038,8 @@
                     if (qrcodeContainer && qrcodeContainer.childElementCount === 0) {
                         new QRCode(qrcodeContainer, {
                             text: card.rawQr,
-                            width: 100,
-                            height: 100,
+                            width: 90,
+                            height: 90,
                             colorDark: "#000000",
                             colorLight: "#ffffff",
                             correctLevel: QRCode.CorrectLevel.M
