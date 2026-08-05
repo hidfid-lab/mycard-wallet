@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyCard 智慧點數皮夾 [v1.2.2-native]</title>
+    <title>MyCard 智慧點數皮夾 [v1.2.2-NativeSpeed]</title>
     
-    <!-- 引入 jsQR 用於純前端高效率解析視訊畫面中的 QR Code -->
+    <!-- 引入 jsQR 引擎與相關編碼工具 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -71,14 +71,14 @@
             position: relative;
             width: 100%;
             max-width: 480px;
-            height: 280px;
+            height: 320px;
             margin: 0 auto 8px auto;
             border-radius: 8px;
             overflow: hidden;
             background-color: #000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             display: none;
-            border: 1px solid #555;
+            border: 2px solid #ef4444;
         }
 
         #webcamVideo {
@@ -94,16 +94,16 @@
             width: 90%;
             height: 2px;
             background: #ef4444;
-            box-shadow: 0 0 8px #ef4444;
+            box-shadow: 0 0 10px #ef4444;
             z-index: 10;
-            animation: laserScan 1.6s infinite ease-in-out;
+            animation: laserScan 1.4s infinite ease-in-out;
             pointer-events: none;
         }
 
         @keyframes laserScan {
-            0% { top: 15%; opacity: 0.3; }
-            50% { top: 85%; opacity: 1; }
-            100% { top: 15%; opacity: 0.3; }
+            0% { top: 10%; opacity: 0.2; }
+            50% { top: 90%; opacity: 1; }
+            100% { top: 10%; opacity: 0.2; }
         }
 
         .status-tracker {
@@ -115,7 +115,7 @@
             color: #fff;
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             text-align: center;
             z-index: 20;
         }
@@ -135,16 +135,17 @@
             top: 6px;
             left: 6px;
             right: 6px;
-            background: rgba(17, 24, 39, 0.92);
+            background: rgba(17, 24, 39, 0.95);
             color: #ffffff;
-            padding: 6px 10px;
+            padding: 8px 12px;
             border-radius: 6px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             z-index: 100;
             display: none;
+            border: 1px solid #10b981;
         }
 
         .panel-card {
@@ -475,7 +476,7 @@
 <body>
 
     <div class="header">
-        <h1>💳 MyCard 智慧點數皮夾 [v1.2.2-native]</h1>
+        <h1>💳 MyCard 智慧點數皮夾 [v1.2.2-NativeSpeed]</h1>
     </div>
 
     <div class="stats-panel">
@@ -504,7 +505,7 @@
         </div>
 
         <div class="main-btn-group">
-            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 2、啟動極速原生掃描鏡頭</button>
+            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 2、啟動極速硬體對焦鏡頭</button>
             <button class="btn-stop" id="stopBtn" onclick="stopCamera()">關閉鏡頭</button>
         </div>
     </div>
@@ -545,7 +546,7 @@
     <div class="panel-card">
         <div class="section-label" style="color: var(--text-sub); cursor: default;">4、工作日誌面板：</div>
         <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] v1.2.2-native 原生核心載入完成...</div>
+            <div>[系統初始化] v1.2.2-NativeSpeed 極速解碼引擎載入完成...</div>
         </div>
     </div>
 
@@ -556,10 +557,10 @@
         let currentFolder = 'all';
 
         let mediaStream = null;
-        let scanInterval = null;
+        let scanAnimFrame = null;
         let isProcessing = false;
         let isCoolingDown = false;
-        const COOLDOWN_MS = 2200; 
+        const COOLDOWN_MS = 2000; 
 
         const STORAGE_KEY = 'mycard_point_cards_v1';
         const GOOGLE_SCRIPT_URL = ""; 
@@ -639,23 +640,23 @@
         }
 
         function playSuccessBeep() {
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
             try {
                 initAudio();
                 const osc = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.value = 880;
-                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                osc.frequency.value = 987.77; // B5
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 osc.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.12);
+                osc.stop(audioCtx.currentTime + 0.15);
             } catch (e) {}
         }
 
         function playDuplicateBeep() {
-            if (navigator.vibrate) navigator.vibrate(300);
+            if (navigator.vibrate) navigator.vibrate(250);
             try {
                 initAudio();
                 const osc = audioCtx.createOscillator();
@@ -670,14 +671,35 @@
             } catch (e) {}
         }
 
+        // 核心突破 1：要求最速硬體相機控制與高畫質對焦
         async function startCamera() {
             initAudio();
-            log("► 正在請求相機權限...");
+            log("► 正在啟動原生高解析度對焦鏡頭...");
             
+            const constraints = {
+                video: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 },
+                    focusMode: { ideal: "continuous" }
+                }
+            };
+
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-                });
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                // 嘗試啟用硬體層級的持續對焦
+                const videoTrack = mediaStream.getVideoTracks()[0];
+                if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
+                    try {
+                        await videoTrack.applyConstraints({
+                            advanced: [{ focusMode: "continuous" }]
+                        });
+                        log("🎯 已成功鎖定硬體連續自動對焦");
+                    } catch (e) {
+                        log("ℹ️ 裝置使用預設對焦模式");
+                    }
+                }
 
                 const videoEl = document.getElementById('webcamVideo');
                 videoEl.srcObject = mediaStream;
@@ -687,45 +709,60 @@
                 document.getElementById('startBtn').style.display = 'none';
                 document.getElementById('stopBtn').style.display = 'block';
 
-                log("📷 原生相機串流成功，開始極速偵測...");
-                startNativeScanning();
+                log("📷 相機畫面已啟用，進入極速 RequestAnimationFrame 解碼循環...");
+                requestAnimationFrame(scanFrame);
 
             } catch (err) {
                 log("❌ 開啟相機失敗: " + err);
-                alert("相機開啟失敗！請確認瀏覽器已授權相機權限，且必須在 HTTPS 網址下執行。");
+                alert("開啟相機失敗！請確認授權與 HTTPS 環境。");
             }
         }
 
-        function startNativeScanning() {
+        // 核心突破 2：使用 requestAnimationFrame 極速循環 + Canvas 多畫質補強解碼
+        function scanFrame() {
+            if (!mediaStream) return;
+            
             const video = document.getElementById('webcamVideo');
             const canvas = document.getElementById('scanCanvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-            if (scanInterval) clearInterval(scanInterval);
+            if (!isProcessing && !isCoolingDown && video.readyState === video.HAVE_ENOUGH_DATA) {
+                // 自動取視訊中央高感光區域，縮小運算量並提高對焦點精度
+                const cropWidth = Math.min(video.videoWidth, 1280);
+                const cropHeight = Math.min(video.videoHeight, 720);
+                canvas.width = cropWidth;
+                canvas.height = cropHeight;
 
-            scanInterval = setInterval(() => {
-                if (isProcessing || isCoolingDown) return;
-                if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+                const startX = (video.videoWidth - cropWidth) / 2;
+                const startY = (video.videoHeight - cropHeight) / 2;
 
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+                const imageData = ctx.getImageData(0, 0, cropWidth, cropHeight);
 
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                // 1. 原圖直解
+                let code = jsQR(imageData.data, imageData.width, imageData.height, {
                     inversionAttempts: "dontInvert",
                 });
 
-                if (code && code.data) {
+                // 2. 若原圖解碼失敗，嘗試進行快閃倒色（針對亮光 reflections 進行防禦）
+                if (!code) {
+                    code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "onlyInvert",
+                    });
+                }
+
+                if (code && code.data && code.data.trim().length > 0) {
                     onScanSuccess(code.data);
                 }
-            }, 120); 
+            }
+
+            scanAnimFrame = requestAnimationFrame(scanFrame);
         }
 
         function stopCamera() {
-            if (scanInterval) {
-                clearInterval(scanInterval);
-                scanInterval = null;
+            if (scanAnimFrame) {
+                cancelAnimationFrame(scanAnimFrame);
+                scanAnimFrame = null;
             }
             if (mediaStream) {
                 mediaStream.getTracks().forEach(track => track.stop());
@@ -739,9 +776,9 @@
             log("相機已關閉。");
         }
 
+        // 彈性字串拆解
         function parseMyCardQRCode(text) {
             let cleanText = text.trim();
-            // 增強解析彈性：能處理帶有 | 分隔的標準字串，也能處理一般文字
             let parts = cleanText.split('|').map(p => p.trim()).filter(p => p.length > 0);
             
             if (parts.length >= 3) {
@@ -776,8 +813,8 @@
             const parsed = parseMyCardQRCode(decodedText);
 
             if (isCardExists(parsed.cardNo)) {
-                log(`⚠️ 卡號 [${parsed.cardNo}] 已存在資料庫`);
-                showToast(`⚠️ 此點數卡已收錄過！`);
+                log(`⚠️ 卡號 [${parsed.cardNo}] 已在皮夾中`);
+                showToast(`⚠️ 此卡已收錄過！`);
                 playDuplicateBeep();
                 startCoolDown();
                 return;
@@ -805,7 +842,7 @@
             cards.unshift(newCard);
             saveCards(cards);
 
-            log(`⚡️ 成功收錄！卡號:[${parsed.cardNo}] (${currentDenom}點)`);
+            log(`⚡️ 瞬解成功！卡號:[${parsed.cardNo}] (${currentDenom}點)`);
             showToast(`🎉 成功收錄 ${currentDenom} 點卡片！`);
             playSuccessBeep();
 
@@ -828,7 +865,7 @@
                     scanTag.innerText = '請將鏡頭對準 QR Code 進行掃描'; 
                     scanTag.className = 'status-tag'; 
                 }
-                log("✨ 冷卻完畢，準備接收下一張！");
+                log("✨ 準備接收下一張！");
             }, COOLDOWN_MS);
         }
 
