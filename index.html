@@ -1,1547 +1,504 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>快樂小七 - 智慧皮夾 (含 MyCard 快掃)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyCard 儲值卡快掃助手</title>
+  <!-- QRCode.js 用於根據解析數據生成右側 QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- jsQR 用於相容模式下的圖像讀取 -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      background: #0d1117; 
+      color: #e6edf3; 
+      text-align: center; 
+      padding: 16px;
+      padding-bottom: 40px;
+    }
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <!-- QRCode.js 用於根據 MyCard 解析數據生成右側動態 QR Code -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    header { margin-bottom: 16px; }
+    h1 { font-size: 20px; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .subtitle { font-size: 12px; color: #8b949e; }
 
-    <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --primary: #3b82f6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --mycard-blue: #00aeef;
-            --text-main: #ffffff;
-            --text-sub: #aaa;
-            --border-color: #333;
-        }
+    .status-badge { 
+      display: inline-block; 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      font-size: 13px; 
+      font-weight: bold; 
+      margin: 12px 0; 
+    }
+    .badge-native { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
+    .badge-fallback { background: #7c2d12; color: #ffedd5; border: 1px solid #f97316; }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+    /* 相機畫面區塊 */
+    #video-container { 
+      position: relative; 
+      width: 100%; 
+      max-width: 420px; 
+      margin: 0 auto; 
+      overflow: hidden; 
+      border-radius: 16px; 
+      background: #000; 
+      aspect-ratio: 4/3; 
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      border: 1px solid #30363d;
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    
+    .overlay-box { 
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      width: 70%; 
+      height: 60%; 
+      border: 2px solid #00aeef; 
+      border-radius: 12px; 
+      pointer-events: none; 
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+    }
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #0284c7;
+      animation: scan 2s infinite ease-in-out;
+    }
+    @keyframes scan {
+      0% { top: 5%; }
+      50% { top: 95%; }
+      100% { top: 5%; }
+    }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 12px;
-        }
+    .btn-group { display: flex; justify-content: center; gap: 10px; margin: 16px auto; max-width: 420px; }
+    .btn { 
+      flex: 1;
+      padding: 12px 16px; 
+      font-size: 15px; 
+      font-weight: bold; 
+      border-radius: 10px; 
+      border: none; 
+      cursor: pointer; 
+      background: #0284c7; 
+      color: white; 
+      transition: background 0.2s;
+    }
+    .btn:active { background: #0369a1; }
+    .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+    .btn-secondary:active { background: #161b22; }
 
-        .header {
-            text-align: center;
-            margin-bottom: 12px;
-        }
-        .header h1 {
-            font-size: 1.4rem;
-            margin: 0;
-            color: #ffffff;
-            font-weight: 800;
-        }
+    #fallback-section { display: none; margin: 12px auto; max-width: 420px; }
+    input[type="file"] { display: none; }
 
-        /* 統計面板 */
-        .stats-panel {
-            background-color: var(--card-bg);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-around;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-        .stat-item div:first-child {
-            font-size: 0.8rem;
-            color: var(--text-sub);
-        }
-        .stat-item div:last-child {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #34d399;
-        }
+    /* =============== MyCard 擬真卡片樣式 =============== */
+    .card-container {
+      margin: 20px auto;
+      max-width: 420px;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border: 2px solid #00aeef;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 25px rgba(0, 174, 239, 0.2);
+      text-align: left;
+      display: none; 
+    }
+    .card-header-logo {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #374151;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .mycard-brand {
+      font-size: 18px;
+      font-weight: 900;
+      color: #00aeef;
+      letter-spacing: 1px;
+    }
+    .card-tag {
+      font-size: 11px;
+      background: #00aeef22;
+      color: #38bdf8;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #00aeef44;
+    }
+    .card-body-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .card-info-left {
+      flex: 1;
+    }
+    .info-group {
+      margin-bottom: 10px;
+    }
+    .info-label {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+    .info-value {
+      font-size: 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+      color: #f3f4f6;
+      letter-spacing: 1px;
+      word-break: break-all;
+    }
+    .card-qr-right {
+      background: #ffffff;
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 100px;
+    }
+    .card-qr-right canvas, .card-qr-right img {
+      width: 90px !important;
+      height: 90px !important;
+    }
+    .card-notice-red {
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px dashed #374151;
+      line-height: 1.5;
+    }
 
-        /* 相機畫面與掃描區域 */
-        .camera-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 480px;
-            height: 220px;
-            margin: 0 auto 12px auto;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: #000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: none;
-            border: 1px solid #555;
-        }
-
-        #reader {
-            width: 100%;
-            height: 100%;
-        }
-        #reader button, #reader select { display: none !important; }
-        #reader video {
-            object-fit: cover !important;
-            width: 100% !important;
-            height: 100% !important;
-            filter: contrast(1.2) brightness(1.02);
-        }
-
-        .laser-line {
-            position: absolute;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background: #ef4444;
-            box-shadow: 0 0 8px #ef4444;
-            z-index: 10;
-            animation: laserScan 1.6s infinite ease-in-out;
-            pointer-events: none;
-            display: none;
-        }
-
-        @keyframes laserScan {
-            0% { top: 15%; opacity: 0.3; }
-            50% { top: 85%; opacity: 1; }
-            100% { top: 15%; opacity: 0.3; }
-        }
-
-        .status-tracker {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            background: rgba(17, 24, 39, 0.9);
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            display: flex;
-            justify-content: space-between;
-            z-index: 20;
-        }
-        .status-tag {
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: #374151;
-            transition: all 0.2s ease;
-        }
-        .status-tag.ok {
-            background: #10b981;
-            color: white;
-            font-weight: bold;
-        }
-
-        /* 控制面板 */
-        .panel-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .section-label {
-            font-size: 0.9rem;
-            font-weight: bold;
-            color: #34d399;
-            margin-bottom: 8px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            user-select: none;
-        }
-
-        .option-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .opt-btn {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .opt-btn.active {
-            background: #10b981;
-            border-color: #10b981;
-            color: #fff;
-        }
-        .opt-btn.mycard-active {
-            background: var(--mycard-blue);
-            border-color: var(--mycard-blue);
-            color: #fff;
-        }
-
-        .custom-denom-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .custom-denom-row input {
-            flex: 1;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: white;
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-
-        /* 可折疊規則設定區 */
-        .config-box {
-            background: #141414;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-        }
-        .config-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 8px;
-            font-size: 0.82rem;
-        }
-        .config-row:last-child { margin-bottom: 0; }
-        .config-row label.title-label {
-            font-weight: bold;
-            color: #fff;
-            width: 80px;
-        }
-        .config-input {
-            width: 50px;
-            padding: 4px;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            text-align: center;
-        }
-        .config-check-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-left: 4px;
-        }
-        .config-check {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            font-size: 0.8rem;
-            color: #ccc;
-            cursor: pointer;
-        }
-
-        .config-banner {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #93c5fd;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.78rem;
-            font-weight: bold;
-            margin-top: 6px;
-        }
-
-        /* 按鈕群組 */
-        .main-btn-group {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .btn-start {
-            flex: 1;
-            background: var(--success);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .btn-stop {
-            flex: 1;
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            display: none;
-        }
-
-        .tool-btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .clean-btn {
-            width: 100%;
-            background-color: var(--warning);
-            color: #121212;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .sync-btn {
-            width: 100%;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .deleteAll-btn {
-            width: 100%;
-            background-color: #b91c1c;
-            color: white;
-            border: 1px solid #ef4444;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 12px;
-        }
-
-        /* 湊款結帳專區 CSS */
-        .checkout-box {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .checkout-box input {
-            flex: 1;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 1rem;
-        }
-        .checkout-btn {
-            background-color: #8b5cf6;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* =============== MyCard 擬真卡片專用 CSS =============== */
-        .mycard-rendered-box {
-            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-            border: 2px solid #00aeef;
-            border-radius: 12px;
-            padding: 14px;
-            box-shadow: 0 8px 20px rgba(0, 174, 239, 0.25);
-            text-align: left;
-            margin-top: 4px;
-        }
-        .mycard-header-logo {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #374151;
-            padding-bottom: 6px;
-            margin-bottom: 10px;
-        }
-        .mycard-brand {
-            font-size: 16px;
-            font-weight: 900;
-            color: #00aeef;
-            letter-spacing: 1px;
-        }
-        .mycard-tag {
-            font-size: 10px;
-            background: #00aeef22;
-            color: #38bdf8;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #00aeef44;
-        }
-        .mycard-body-flex {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-        }
-        .mycard-info-left { flex: 1; }
-        .mycard-info-group { margin-bottom: 8px; }
-        .mycard-info-label { font-size: 10px; color: #9ca3af; margin-bottom: 2px; }
-        .mycard-info-value {
-            font-size: 14px;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            color: #f3f4f6;
-            letter-spacing: 1px;
-            word-break: break-all;
-        }
-        .mycard-qr-right {
-            background: #ffffff;
-            padding: 6px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .mycard-qr-right canvas, .mycard-qr-right img {
-            width: 80px !important;
-            height: 80px !important;
-        }
-        .mycard-notice-red {
-            color: #ef4444;
-            font-size: 11px;
-            font-weight: bold;
-            text-align: center;
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px dashed #374151;
-            line-height: 1.4;
-        }
-
-        /* 全螢幕支付錢包 Modal */
-        .payment-modal {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #121212;
-            z-index: 99999;
-            display: none;
-            flex-direction: column;
-            padding: 16px;
-            box-sizing: border-box;
-            overflow-y: auto;
-        }
-        .payment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333;
-            padding-bottom: 12px;
-            margin-bottom: 12px;
-        }
-        .payment-cash-info {
-            font-size: 1.1rem;
-            color: #f59e0b;
-            font-weight: bold;
-        }
-        .close-pay-btn {
-            background: #333;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .pay-card-container {
-            display: flex;
-            flex-direction: column;
-            background: #1e1e1e;
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid #444;
-            position: relative;
-        }
-        .finish-btn-top {
-            width: 100%;
-            background-color: #10b981;
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 16px;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-        }
-        .pay-nav-row {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-top: 10px;
-            gap: 12px;
-        }
-        .pay-nav-btn {
-            flex: 1;
-            background: #374151;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* 資料夾與卡片展示 */
-        .folder-tabs-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .folder-tab {
-            background-color: #2a2a2a;
-            border: 1px solid #444;
-            color: #aaa;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-        }
-        .folder-tab.active {
-            background-color: #34d399;
-            color: #121212;
-            font-weight: bold;
-            border-color: #34d399;
-        }
-
-        .batch-danger-btn {
-            width: 100%;
-            background-color: var(--danger);
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 12px;
-        }
-
-        .card-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .card-item {
-            background-color: var(--card-bg);
-            padding: 14px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .card-item.archived {
-            opacity: 0.85;
-            border-color: #444;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .badge-channel {
-            background-color: var(--warning);
-            color: #121212;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
-        .badge-mycard {
-            background-color: var(--mycard-blue);
-            color: #ffffff;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
-        .badge-synced {
-            background-color: var(--success);
-            color: #121212;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            margin-left: 4px;
-        }
-
-        .denom-tag {
-            font-weight: bold;
-            color: #34d399;
-            margin-left: 6px;
-            font-size: 1.05rem;
-        }
-
-        .barcode-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 4px;
-            width: 100%;
-        }
-        .barcode-title {
-            font-size: 0.82rem;
-            color: #ccc;
-            margin-bottom: 4px;
-        }
-        .barcode-box-large {
-            background: #ffffff;
-            padding: 12px 8px;
-            border-radius: 6px;
-            text-align: center;
-            width: 100%;
-        }
-        .barcode-svg-large {
-            width: 100%;
-            height: auto;
-            max-height: 90px;
-            display: block;
-            margin: 0 auto;
-        }
-
-        .action-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-top: 4px;
-        }
-        .btn-action {
-            border: none;
-            padding: 10px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: bold;
-            flex: 1;
-        }
-        .archive-btn { background-color: var(--primary); color: white; }
-        .delete-btn { background-color: var(--danger); color: white; }
-
-        /* 工作日誌面板 */
-        .hud-console {
-            background: #111827;
-            color: #10b981;
-            font-family: monospace;
-            font-size: 0.78rem;
-            padding: 10px;
-            border-radius: 8px;
-            height: 240px;
-            overflow-y: auto;
-            line-height: 1.5;
-            border: 1px solid #1f2937;
-        }
-    </style>
+    /* 歷史記錄清單 */
+    .history-section { margin: 24px auto 0; max-width: 420px; text-align: left; }
+    .history-title { font-size: 14px; color: #8b949e; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .history-list { list-style: none; max-height: 200px; overflow-y: auto; }
+    .history-item { 
+      background: #161b22; 
+      padding: 10px 12px; 
+      border-radius: 8px; 
+      margin-bottom: 6px; 
+      font-family: monospace; 
+      font-size: 13px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      border: 1px solid #30363d;
+    }
+    .clear-btn { background: none; border: none; color: #f85149; font-size: 12px; cursor: pointer; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+    .btn-copy { background: #059669; color: white; }
+  </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>🏪 快樂小七</h1>
+  <header>
+    <h1>💳 MyCard 擬真快掃助手</h1>
+    <div class="subtitle">自動解析點數卡並重組為實體卡片樣式</div>
+  </header>
+
+  <div id="mode-badge" class="status-badge">正在檢測硬體支援度...</div>
+
+  <div id="video-container">
+    <video id="video" playsinline></video>
+    <div class="overlay-box">
+      <div class="scan-line"></div>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn" id="start-btn" onclick="startCamera()">開啟連續鏡頭</button>
+    <button class="btn btn-secondary" onclick="stopCamera()">關閉鏡頭</button>
+  </div>
+
+  <div id="fallback-section">
+    <p style="font-size: 13px; color: #8b949e; margin-bottom: 8px;">當前瀏覽器不支援高幀率硬體掃描，請選擇相片上傳：</p>
+    <label for="file-input" class="btn btn-secondary" style="display: block; width: 100%;">📷 拍照 / 選擇圖片辨識</label>
+    <input type="file" id="file-input" accept="image/*" onchange="handleFileUpload(event)">
+  </div>
+
+  <div id="card-display" class="card-container">
+    <div class="card-header-logo">
+      <span class="mycard-brand">MyCard 點數卡</span>
+      <span class="card-tag">掃描成功</span>
+    </div>
+    
+    <div class="card-body-flex">
+      <div class="card-info-left">
+        <div class="info-group">
+          <div class="info-label">卡號 (Card No.)</div>
+          <div id="card-number" class="info-value">----</div>
+        </div>
+        <div class="info-group" style="margin-bottom: 0;">
+          <div class="info-label">密碼 (PIN)</div>
+          <div id="card-password" class="info-value">----</div>
+        </div>
+      </div>
+
+      <div class="card-qr-right">
+        <div id="qrcode"></div>
+      </div>
     </div>
 
-    <!-- 0、條碼參數設定（可折疊） -->
-    <div class="panel-card">
-        <div class="section-label" onclick="toggleConfigPanel()">
-            <span>⚙️ 0、條碼與 MyCard 解析設定</span>
-            <span id="configToggleIcon">▼</span>
-        </div>
-        <div id="configContent">
-            <div class="config-box">
-                <div class="config-row">
-                    <label class="title-label">全域長度限制：</label>
-                    最小 <input type="number" id="minLenInput" class="config-input" value="8" onchange="updateBanner()"> 碼 ~ 
-                    最大 <input type="number" id="maxLenInput" class="config-input" value="16" onchange="updateBanner()"> 碼
-                </div>
-                <div class="config-row">
-                    <label class="title-label">超商主碼類型：</label>
-                    <div class="config-check-group">
-                        <label class="config-check"><input type="checkbox" id="mainNum" checked onchange="updateBanner()">純數字</label>
-                        <label class="config-check"><input type="checkbox" id="mainMix" onchange="updateBanner()">英數混合</label>
-                        <label class="config-check"><input type="checkbox" id="mainAlpha" onchange="updateBanner()">純英文</label>
-                    </div>
-                </div>
-                <div class="config-row">
-                    <label class="title-label">超商副碼類型：</label>
-                    <div class="config-check-group">
-                        <label class="config-check"><input type="checkbox" id="subNum" onchange="updateBanner()">純數字</label>
-                        <label class="config-check"><input type="checkbox" id="subMix" checked onchange="updateBanner()">英數混合</label>
-                        <label class="config-check"><input type="checkbox" id="subAlpha" checked onchange="updateBanner()">純英文</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="config-banner" id="configBanner">
-                長度限制：8~16碼 | 主碼:純數 | 副碼:英數,純英
-            </div>
-        </div>
+    <div class="card-notice-red">
+      會員點數限儲值至my card會員帳號<br>
+      請點選App下方「儲值購買」後，掃描QR Code
     </div>
+  </div>
 
-    <!-- 統計面板 -->
-    <div class="stats-panel">
-        <div class="stat-item">
-            <div>有效卡片數</div>
-            <div id="statCount">0 張</div>
-        </div>
-        <div class="stat-item">
-            <div>總剩餘面額</div>
-            <div id="statTotal">NT$ 0</div>
-        </div>
+  <div class="history-section">
+    <div class="history-title">
+      <span>歷史掃描紀錄 (<span id="history-count">0</span>)</span>
+      <button class="clear-btn" onclick="clearHistory()">清除紀錄</button>
     </div>
+    <ul class="history-list" id="history-list"></ul>
+  </div>
 
-    <!-- 4、錢包結帳自動湊款功能 -->
-    <div class="panel-card" style="border: 1px solid #8b5cf6;">
-        <div class="section-label" style="color: #a78bfa; cursor: default;">💳 4、錢包結帳自動湊款 (實體超商專用)</div>
-        <div class="checkout-box">
-            <input type="number" id="targetAmountInput" placeholder="輸入結帳總金額 (如: 260)" />
-            <button class="checkout-btn" onclick="startCheckoutProcess()">💳 進入支付錢包</button>
-        </div>
-        <div style="font-size: 0.78rem; color: #aaa;">
-            * 湊款演算法：卡片總額 $\le$ 應付金額 且極大化，確保剩餘現金支付 > 0 元開立發票。
-        </div>
-    </div>
+  <canvas id="hidden-canvas" style="display: none;"></canvas>
 
-    <!-- 1、2、3 選擇通路、面額與啟動掃描 -->
-    <div class="panel-card">
-        <div class="section-label" style="cursor: default;">1. 選擇通路與卡別</div>
-        <div class="option-group" id="storeGroup">
-            <button class="opt-btn active" onclick="setStore('7-ELEVEN')">7-ELEVEN</button>
-            <button class="opt-btn" onclick="setStore('全家')">全家</button>
-            <button class="opt-btn" onclick="setStore('萊爾富')">萊爾富</button>
-            <button class="opt-btn" onclick="setStore('OK超商')">OK超商</button>
-            <button class="opt-btn" style="border-color: var(--mycard-blue);" onclick="setStore('MyCard')">💳 MyCard</button>
-        </div>
+  <script>
+    let videoStream = null;
+    let isScanning = false;
+    let barcodeDetector = null;
+    let lastScannedText = "";
+    let lastScannedTime = 0;
+    let qrCodeInstance = null;
+    const historyData = [];
 
-        <div class="section-label" style="cursor: default;">2. 選擇本次掃描面額 (NT$)</div>
-        <div class="option-group" id="denomGroup">
-            <button class="opt-btn" onclick="setDenom(20)">20</button>
-            <button class="opt-btn" onclick="setDenom(25)">25</button>
-            <button class="opt-btn" onclick="setDenom(35)">35</button>
-            <button class="opt-btn active" onclick="setDenom(50)">50</button>
-            <button class="opt-btn" onclick="setDenom(100)">100</button>
-            <button class="opt-btn" onclick="setDenom(500)">500</button>
-            <button class="opt-btn" onclick="setDenom(1000)">1000</button>
-        </div>
-        <div class="custom-denom-row">
-            <input type="number" id="customDenomInput" placeholder="或輸入自訂面額..." oninput="selectCustomDenom(this.value)">
-        </div>
+    const video = document.getElementById('video');
+    const modeBadge = document.getElementById('mode-badge');
+    const fallbackSection = document.getElementById('fallback-section');
+    const cardDisplay = document.getElementById('card-display');
+    const cardNumberElem = document.getElementById('card-number');
+    const cardPasswordElem = document.getElementById('card-password');
 
-        <div class="main-btn-group">
-            <button class="btn-start" id="startBtn" onclick="startCamera()">🚀 3、啟動鏡頭掃描</button>
-            <button class="btn-stop" id="stopBtn" onclick="stopCamera()">關閉鏡頭</button>
-        </div>
-    </div>
+    async function initCheck() {
+      if ('BarcodeDetector' in window) {
+        try {
+          const supportedFormats = await BarcodeDetector.getSupportedFormats();
+          if (supportedFormats.includes('qr_code')) {
+            barcodeDetector = new BarcodeDetector({ 
+              formats: ['qr_code', 'code_128', 'code_39', 'ean_13'] 
+            });
+            modeBadge.textContent = "⚡ 已啟用：硬體加速連續掃描";
+            modeBadge.className = "status-badge badge-native";
+            return;
+          }
+        } catch (e) { console.warn("BarcodeDetector 檢測失敗:", e); }
+      }
+      
+      modeBadge.textContent = "⚠️ 已降級：相容模式 (建議拍照上傳)";
+      modeBadge.className = "status-badge badge-fallback";
+      fallbackSection.style.display = "block";
+    }
 
-    <!-- 相機畫面區 -->
-    <div class="camera-wrapper" id="cameraWrapper">
-        <div class="laser-line" id="laserLine"></div>
-        <div class="status-tracker">
-            <span id="tagMain" class="status-tag">待捕獲目標條碼</span>
-        </div>
-        <div id="reader"></div>
-    </div>
-
-    <!-- 工具按鈕區 -->
-    <div class="tool-btn-group">
-        <button class="clean-btn" onclick="removeDuplicateCards()">🧹 一鍵清除本機重複卡片</button>
-        <button class="sync-btn" onclick="syncUnsentCardsToGoogleSheets()">📤 智慧同步至 Google 表單 (自動過濾雲端重複)</button>
-    </div>
-
-    <!-- 5、卡片收納資料夾 (支援超商條碼與 MyCard 擬真卡片展示) -->
-    <div class="panel-card">
-        <div class="section-label" onclick="toggleFolderPanel()">
-            <span>📁 5、卡片收納資料夾</span>
-            <span id="folderToggleIcon">▼</span>
-        </div>
-        <div id="folderContent">
-            <div class="folder-tabs-grid" id="folderTabs"></div>
-            
-            <button id="batchDeleteBtn" class="batch-danger-btn" style="display: none;" onclick="deleteAllArchivedCards()">
-                💥 一鍵清空所有已封存卡片
-            </button>
-
-            <div class="card-list" id="cardList"></div>
-        </div>
-    </div>
-
-    <!-- 6、工作日誌面板 -->
-    <div class="panel-card">
-        <div class="section-label" style="color: var(--text-sub); cursor: default;">6、工作日誌面板：</div>
-        <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] 快樂小七 智慧皮夾模組 (含 MyCard) 載入完成...</div>
-        </div>
-    </div>
-
-    <!-- 7、一鍵清除本機所有卡片 -->
-    <button class="deleteAll-btn" onclick="deleteAllCardsEver()">💥 7、一鍵清除本機所有卡片</button>
-
-    <!-- 全螢幕專用支付錢包 Modal -->
-    <div class="payment-modal" id="paymentModal">
-        <div class="payment-header">
-            <div>
-                <span style="font-weight: bold; color: #a78bfa; font-size: 1.1rem;">💳 專用支付錢包</span>
-                <span id="payCardStep" style="font-size: 0.85rem; color: #aaa; margin-left: 8px;">(1/1)</span>
-            </div>
-            <div class="payment-cash-info" id="payCashInfo">剩餘需付現金: NT$ 0</div>
-            <button class="close-pay-btn" onclick="closePaymentWallet()">✕ 離開</button>
-        </div>
-
-        <div class="pay-card-container" id="payCardContainer">
-            <!-- 內容由 JS 動態填入 -->
-        </div>
-    </div>
-
-    <script>
-        // 全域狀態變數
-        let currentStore = "7-ELEVEN";
-        let currentDenom = 50;
-        let currentFolder = 'all';
-
-        let html5QrcodeScanner = null;
-        let isProcessing = false;
-        let isCoolingDown = false;
-        const COOLDOWN_MS = 2000;
-
-        let pendingMain = { code: null, time: 0 };
-        let pendingSub = { code: null, time: 0 };
-
-        // 湊款與支付錢包全域狀態
-        let paymentSelectedCards = [];
-        let paymentCurrentIndex = 0;
-        let paymentTargetAmount = 0;
-
-        const STORAGE_KEY = 'happy_seven_gift_cards_v3';
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhG25duFyY9RTwbrSkeJFbiuYh9ZLfMDVpPyHXpkHtL6RHd6t8YxHXDjXBOkXqkoWdzA/exec";
-
-        function log(msg) {
-            const consoleEl = document.getElementById('hudConsole');
-            if (!consoleEl) return;
-            const time = new Date().toLocaleTimeString();
-            const div = document.createElement('div');
-            div.innerText = `[${time}] ${msg}`;
-            consoleEl.appendChild(div);
-            consoleEl.scrollTop = consoleEl.scrollHeight;
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            renderFolders();
-            renderCards();
-            updateBanner();
+    async function startCamera() {
+      if (isScanning) return;
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
-
-        function toggleConfigPanel() {
-            const content = document.getElementById('configContent');
-            const icon = document.getElementById('configToggleIcon');
-            content.style.display = content.style.display === 'none' ? 'block' : 'none';
-            icon.innerText = content.style.display === 'none' ? '▲' : '▼';
+        video.srcObject = videoStream;
+        await video.play();
+        isScanning = true;
+        
+        if (barcodeDetector) {
+          requestAnimationFrame(scanWithNativeDetector);
+        } else {
+          scanWithFallbackJS();
         }
+      } catch (err) {
+        alert("無法存取相機，請確認瀏覽器已獲授權。");
+        console.error(err);
+      }
+    }
 
-        function toggleFolderPanel() {
-            const content = document.getElementById('folderContent');
-            const icon = document.getElementById('folderToggleIcon');
-            content.style.display = content.style.display === 'none' ? 'block' : 'none';
-            icon.innerText = content.style.display === 'none' ? '▲' : '▼';
+    function parseMyCardData(rawData) {
+      let cardNo = "----";
+      let cardPwd = "----";
+
+      if (rawData.includes(',')) {
+        const parts = rawData.split(',');
+        cardNo = parts[0] || "----";
+        cardPwd = parts[1] || "----";
+      } else if (rawData.includes(';')) {
+        const parts = rawData.split(';');
+        cardNo = parts[0] || "----";
+        cardPwd = parts[1] || "----";
+      } else if (rawData.includes('=')) {
+        const parts = rawData.split('=');
+        cardNo = parts[0] || "----";
+        cardPwd = parts[1] || "----";
+      } else if (rawData.length >= 16) {
+        const half = Math.floor(rawData.length / 2);
+        cardNo = rawData.substring(0, half);
+        cardPwd = rawData.substring(half);
+      } else {
+        cardNo = rawData;
+        cardPwd = "N/A";
+      }
+
+      return { cardNo, cardPwd };
+    }
+
+    function handleScanSuccess(dataText) {
+      const now = Date.now();
+      if (dataText === lastScannedText && (now - lastScannedTime) < 2000) {
+        return;
+      }
+
+      lastScannedText = dataText;
+      lastScannedTime = now;
+
+      if (navigator.vibrate) {
+        navigator.vibrate(100);
+      }
+
+      const { cardNo, cardPwd } = parseMyCardData(dataText);
+
+      cardNumberElem.textContent = cardNo;
+      cardPasswordElem.textContent = cardPwd;
+
+      // 關鍵修復：必須先顯示容器，QRCode 才能精準計算畫布寬高
+      cardDisplay.style.display = "block";
+
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = ''; 
+      
+      // 關鍵修復：加入 try-catch 防止特殊編碼直接報錯導致程序當機
+      try {
+        qrCodeInstance = new QRCode(qrContainer, {
+          text: dataText,
+          width: 90,
+          height: 90,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch (e) {
+        console.warn("QR Code 渲染失敗，可能是字串過長或包含特殊字元:", e);
+        qrContainer.innerHTML = '<div style="color:#ef4444; font-size:12px; text-align:center; padding: 20px 0;">格式不支援預覽</div>';
+      }
+
+      if (!historyData.some(h => h.raw === dataText)) {
+        historyData.unshift({ raw: dataText, cardNo, cardPwd });
+        updateHistoryUI();
+      }
+    }
+
+    async function scanWithNativeDetector() {
+      if (!isScanning) return;
+      try {
+        const barcodes = await barcodeDetector.detect(video);
+        if (barcodes.length > 0) {
+          handleScanSuccess(barcodes[0].rawValue);
         }
+      } catch (err) { console.error(err); }
+      if (isScanning) requestAnimationFrame(scanWithNativeDetector);
+    }
 
-        function setStore(val) {
-            currentStore = val;
-            updateBtnGroup('storeGroup', val);
-            updateBanner();
-            log(`已選擇通路：${currentStore}`);
+    function scanWithFallbackJS() {
+      if (!isScanning) return;
+      const canvas = document.getElementById('hidden-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // 關鍵修復：加入反轉色偵測以提升收據條碼支援度
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth"
+        });
+        
+        if (code) {
+          handleScanSuccess(code.data);
         }
-
-        function setDenom(val) {
-            currentDenom = Number(val);
-            updateBtnGroup('denomGroup', val);
-            document.getElementById('customDenomInput').value = '';
-            updateBanner();
-        }
-
-        function selectCustomDenom(val) {
-            if (val) {
-                currentDenom = parseInt(val) || 0;
-                document.querySelectorAll('#denomGroup .opt-btn').forEach(btn => btn.classList.remove('active'));
-                updateBanner();
-            }
-        }
-
-        function updateBtnGroup(groupId, matchText) {
-            const btns = document.querySelectorAll(`#${groupId} .opt-btn`);
-            btns.forEach(btn => {
-                if (btn.innerText == matchText || btn.innerText.includes(matchText)) {
-                    if (matchText === 'MyCard') {
-                        btn.classList.add('mycard-active');
-                    } else {
-                        btn.classList.add('active');
-                    }
-                } else {
-                    btn.classList.remove('active');
-                    btn.classList.remove('mycard-active');
-                }
-            });
-        }
-
-        function getTypesSummary(prefix) {
-            let list = [];
-            if (document.getElementById(prefix + 'Num').checked) list.push('純數');
-            if (document.getElementById(prefix + 'Mix').checked) list.push('英數');
-            if (document.getElementById(prefix + 'Alpha').checked) list.push('純英');
-            return list.length > 0 ? list.join(',') : '無';
-        }
-
-        function updateBanner() {
-            const minLen = document.getElementById('minLenInput').value || 8;
-            const maxLen = document.getElementById('maxLenInput').value || 16;
-            const mainTypes = getTypesSummary('main');
-            const subTypes = getTypesSummary('sub');
-
-            if (currentStore === 'MyCard') {
-                document.getElementById('configBanner').innerText = `已啟用 MyCard 模式：專用單一 QR Code 解析與卡片重組`;
-            } else {
-                document.getElementById('configBanner').innerText = 
-                    `長度限制：${minLen}~${maxLen}碼 | 主碼:${mainTypes} | 副碼:${subTypes}`;
-            }
-        }
-
-        function getCards() {
-            const cards = localStorage.getItem(STORAGE_KEY);
-            return cards ? JSON.parse(cards) : [];
-        }
-
-        function saveCards(cards, shouldRender = true) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
-            if (shouldRender) {
-                renderFolders();
-                renderCards();
-            }
-        }
-
-        /* ----------------------------------------------------
-           MyCard 專用 QR Code 資料拆解邏輯
-        ---------------------------------------------------- */
-        function parseMyCardData(rawData) {
-            let cardNo = "----";
-            let cardPwd = "----";
-
-            if (rawData.includes(',')) {
-                const parts = rawData.split(',');
-                cardNo = parts[0] || "----";
-                cardPwd = parts[1] || "----";
-            } else if (rawData.includes(';')) {
-                const parts = rawData.split(';');
-                cardNo = parts[0] || "----";
-                cardPwd = parts[1] || "----";
-            } else if (rawData.includes('=')) {
-                const parts = rawData.split('=');
-                cardNo = parts[0] || "----";
-                cardPwd = parts[1] || "----";
-            } else if (rawData.length >= 16) {
-                const half = Math.floor(rawData.length / 2);
-                cardNo = rawData.substring(0, half);
-                cardPwd = rawData.substring(half);
-            } else {
-                cardNo = rawData;
-                cardPwd = "N/A";
-            }
-
-            return { cardNo, cardPwd };
-        }
-
-        /* ----------------------------------------------------
-           相機掃描核心邏輯
-        ---------------------------------------------------- */
-        function startCamera() {
-            if (html5QrcodeScanner) return;
-
-            const cameraWrapper = document.getElementById('cameraWrapper');
-            const laserLine = document.getElementById('laserLine');
-            const tagMain = document.getElementById('tagMain');
-
-            cameraWrapper.style.display = 'block';
-            laserLine.style.display = 'block';
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('stopBtn').style.display = 'block';
-
-            if (currentStore === 'MyCard') {
-                tagMain.innerText = 'MyCard: 請掃描 QR Code';
-            } else {
-                tagMain.innerText = '超商雙條碼: 待捕獲';
-            }
-
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            const config = { fps: 20, qrbox: { width: 320, height: 160 } };
-
-            html5QrcodeScanner.start(
-                { facingMode: "environment" },
-                config,
-                onScanSuccess,
-                () => {}
-            ).catch(err => {
-                log(`相機開啟失敗: ${err}`);
-                alert("無法存取相機，請檢查權限。");
-                stopCamera();
-            });
-        }
-
-        function stopCamera() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    html5QrcodeScanner.clear();
-                    html5QrcodeScanner = null;
-                    document.getElementById('cameraWrapper').style.display = 'none';
-                    document.getElementById('laserLine').style.display = 'none';
-                    document.getElementById('startBtn').style.display = 'block';
-                    document.getElementById('stopBtn').style.display = 'none';
-                }).catch(err => console.error(err));
-            }
-        }
-
-        function onScanSuccess(decodedText, decodedResult) {
-            if (isCoolingDown || isProcessing) return;
-
-            const format = decodedResult?.result?.format?.formatName || "";
-
-            // A. MyCard 通路掃描 (只認 QR Code)
-            if (currentStore === 'MyCard') {
-                if (format === 'QR_CODE' || decodedText.length > 10) {
-                    processMyCardScan(decodedText);
-                }
-                return;
-            }
-
-            // B. 實體超商 雙條碼 Code128 掃描
-            const minLen = parseInt(document.getElementById('minLenInput').value) || 8;
-            const maxLen = parseInt(document.getElementById('maxLenInput').value) || 16;
-            
-            if (decodedText.length < minLen || decodedText.length > maxLen) return;
-
-            const now = Date.now();
-            const tagMain = document.getElementById('tagMain');
-
-            if (!pendingMain.code) {
-                pendingMain = { code: decodedText, time: now };
-                tagMain.innerText = `主碼已捕獲: ${decodedText.substring(0, 6)}...`;
-                tagMain.classList.add('ok');
-                if (navigator.vibrate) navigator.vibrate(50);
-            } else if (pendingMain.code !== decodedText && !pendingSub.code) {
-                pendingSub = { code: decodedText, time: now };
-                if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
-                saveDualBarcodeCard(pendingMain.code, pendingSub.code);
-            }
-        }
-
-        function processMyCardScan(rawData) {
-            isProcessing = true;
-            if (navigator.vibrate) navigator.vibrate(100);
-
-            const { cardNo, cardPwd } = parseMyCardData(rawData);
-            const cards = getCards();
-
-            // 防重複判定
-            if (cards.some(c => c.rawMyCard === rawData || c.cardNo === cardNo)) {
-                log(`⚠️ 提示：MyCard 卡號 [${cardNo}] 已存在於本機庫存中！`);
-                triggerCooldown();
-                return;
-            }
-
-            const newCard = {
-                id: 'card_' + Date.now(),
-                channel: 'MyCard',
-                denom: currentDenom,
-                cardNo: cardNo,
-                cardPwd: cardPwd,
-                rawMyCard: rawData,
-                status: 'active',
-                synced: false,
-                createdAt: new Date().toLocaleString()
-            };
-
-            cards.unshift(newCard);
-            saveCards(cards);
-
-            log(`🎉 MyCard 快掃入庫成功！卡號: ${cardNo} | 金額: $${currentDenom}`);
-            triggerCooldown();
-        }
-
-        function saveDualBarcodeCard(b1, b2) {
-            isProcessing = true;
-            const cards = getCards();
-
-            if (cards.some(c => (c.barcode1 === b1 && c.barcode2 === b2) || (c.barcode1 === b2 && c.barcode2 === b1))) {
-                log(`⚠️ 雙條碼已存在，跳過重複卡片！`);
-                triggerCooldown();
-                return;
-            }
-
-            const newCard = {
-                id: 'card_' + Date.now(),
-                channel: currentStore,
-                denom: currentDenom,
-                barcode1: b1,
-                barcode2: b2,
-                status: 'active',
-                synced: false,
-                createdAt: new Date().toLocaleString()
-            };
-
-            cards.unshift(newCard);
-            saveCards(cards);
-
-            log(`🎉 超商雙條碼卡片入庫成功！[${currentStore}] NT$ ${currentDenom}`);
-            triggerCooldown();
-        }
-
-        function triggerCooldown() {
-            isCoolingDown = true;
-            pendingMain = { code: null, time: 0 };
-            pendingSub = { code: null, time: 0 };
-
-            const tagMain = document.getElementById('tagMain');
-            tagMain.innerText = '冷卻換卡中...';
-            tagMain.classList.remove('ok');
-
-            setTimeout(() => {
-                isCoolingDown = false;
-                isProcessing = false;
-                if (currentStore === 'MyCard') {
-                    tagMain.innerText = 'MyCard: 請掃描 QR Code';
-                } else {
-                    tagMain.innerText = '超商雙條碼: 待捕獲';
-                }
-            }, COOLDOWN_MS);
-        }
-
-        /* ----------------------------------------------------
-           卡片渲染與 UI 顯示 (分超商與 MyCard)
-        ---------------------------------------------------- */
-        function renderFolders() {
-            const cards = getCards();
-            const folderTabs = document.getElementById('folderTabs');
-            const stores = ['all', '7-ELEVEN', '全家', '萊爾富', 'OK超商', 'MyCard', 'archived'];
-
-            folderTabs.innerHTML = '';
-            stores.forEach(s => {
-                let count = 0;
-                if (s === 'all') count = cards.filter(c => c.status === 'active').length;
-                else if (s === 'archived') count = cards.filter(c => c.status === 'archived').length;
-                else count = cards.filter(c => c.status === 'active' && c.channel === s).length;
-
-                let name = s;
-                if (s === 'all') name = '全部有效';
-                if (s === 'archived') name = '📦 已封存';
-
-                const btn = document.createElement('button');
-                btn.className = `folder-tab ${currentFolder === s ? 'active' : ''}`;
-                btn.innerText = `${name} (${count})`;
-                btn.onclick = () => {
-                    currentFolder = s;
-                    renderFolders();
-                    renderCards();
-                };
-                folderTabs.appendChild(btn);
-            });
-
-            const batchBtn = document.getElementById('batchDeleteBtn');
-            batchBtn.style.display = (currentFolder === 'archived') ? 'block' : 'none';
-        }
-
-        function renderCards() {
-            const cards = getCards();
-            const cardList = document.getElementById('cardList');
-            cardList.innerHTML = '';
-
-            let filtered = [];
-            if (currentFolder === 'all') filtered = cards.filter(c => c.status === 'active');
-            else if (currentFolder === 'archived') filtered = cards.filter(c => c.status === 'archived');
-            else filtered = cards.filter(c => c.status === 'active' && c.channel === currentFolder);
-
-            // 更新統計
-            const activeCards = cards.filter(c => c.status === 'active');
-            const totalSum = activeCards.reduce((sum, c) => sum + Number(c.denom), 0);
-            document.getElementById('statCount').innerText = `${activeCards.length} 張`;
-            document.getElementById('statTotal').innerText = `NT$ ${totalSum}`;
-
-            if (filtered.length === 0) {
-                cardList.innerHTML = `<div style="text-align:center; color:#666; padding:20px;">此資料夾內無卡片</div>`;
-                return;
-            }
-
-            filtered.forEach(card => {
-                const item = document.createElement('div');
-                item.className = `card-item ${card.status === 'archived' ? 'archived' : ''}`;
-
-                const badgeClass = card.channel === 'MyCard' ? 'badge-mycard' : 'badge-channel';
-                
-                let cardBodyHtml = '';
-
-                if (card.channel === 'MyCard') {
-                    // MyCard 擬真還原樣式
-                    const qrId = `qr_${card.id}`;
-                    cardBodyHtml = `
-                        <div class="mycard-rendered-box">
-                            <div class="mycard-header-logo">
-                                <span class="mycard-brand">MyCard 點數卡</span>
-                                <span class="mycard-tag">儲值專用</span>
-                            </div>
-                            <div class="mycard-body-flex">
-                                <div class="mycard-info-left">
-                                    <div class="mycard-info-group">
-                                        <div class="mycard-info-label">卡號 (Card No.)</div>
-                                        <div class="mycard-info-value">${card.cardNo}</div>
-                                    </div>
-                                    <div class="mycard-info-group" style="margin-bottom:0;">
-                                        <div class="mycard-info-label">密碼 (PIN)</div>
-                                        <div class="mycard-info-value">${card.cardPwd}</div>
-                                    </div>
-                                </div>
-                                <div class="mycard-qr-right">
-                                    <div id="${qrId}"></div>
-                                </div>
-                            </div>
-                            <div class="mycard-notice-red">
-                                會員點數限儲值至my card會員帳號<br>
-                                請點選App下方「儲值購買」後，掃描QR Code
-                            </div>
-                        </div>
-                    `;
-
-                    setTimeout(() => {
-                        const qrElem = document.getElementById(qrId);
-                        if (qrElem && !qrElem.hasChildNodes()) {
-                            new QRCode(qrElem, {
-                                text: card.rawMyCard,
-                                width: 80,
-                                height: 80,
-                                colorDark: "#000000",
-                                colorLight: "#ffffff",
-                                correctLevel: QRCode.CorrectLevel.M
-                            });
-                        }
-                    }, 50);
-
-                } else {
-                    // 實體超商 雙條碼樣式
-                    const b1Id = `b1_${card.id}`;
-                    const b2Id = `b2_${card.id}`;
-                    cardBodyHtml = `
-                        <div class="barcode-group">
-                            <div>
-                                <div class="barcode-title">主碼: ${card.barcode1}</div>
-                                <div class="barcode-box-large">
-                                    <svg id="${b1Id}" class="barcode-svg-large"></svg>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="barcode-title">副碼: ${card.barcode2}</div>
-                                <div class="barcode-box-large">
-                                    <svg id="${b2Id}" class="barcode-svg-large"></svg>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-
-                    setTimeout(() => {
-                        if (typeof JsBarcode !== 'undefined') {
-                            JsBarcode(`#${b1Id}`, card.barcode1, { format: "CODE128", width: 2, height: 60, displayValue: true, fontSize: 14 });
-                            JsBarcode(`#${b2Id}`, card.barcode2, { format: "CODE128", width: 2, height: 60, displayValue: true, fontSize: 14 });
-                        }
-                    }, 50);
-                }
-
-                item.innerHTML = `
-                    <div class="card-header">
-                        <div>
-                            <span class="${badgeClass}">${card.channel}</span>
-                            <span class="denom-tag">NT$ ${card.denom}</span>
-                            ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #888;">${card.createdAt}</div>
-                    </div>
-                    ${cardBodyHtml}
-                    <div class="action-row">
-                        <button class="btn-action archive-btn" onclick="toggleArchiveCard('${card.id}')">
-                            ${card.status === 'active' ? '📦 移至封存' : '↩️ 還原至有效'}
-                        </button>
-                        <button class="btn-action delete-btn" onclick="deleteSingleCard('${card.id}')">🗑️ 刪除</button>
-                    </div>
-                `;
-
-                cardList.appendChild(item);
-            });
-        }
-
-        /* ----------------------------------------------------
-           卡片維護與同步功能
-        ---------------------------------------------------- */
-        function toggleArchiveCard(id) {
-            const cards = getCards();
-            const card = cards.find(c => c.id === id);
-            if (card) {
-                card.status = card.status === 'active' ? 'archived' : 'active';
-                saveCards(cards);
-                log(`卡片狀態更新：${card.id} -> ${card.status}`);
-            }
-        }
-
-        function deleteSingleCard(id) {
-            if (confirm("確定要刪除這張卡片嗎？")) {
-                let cards = getCards().filter(c => c.id !== id);
-                saveCards(cards);
-                log(`已刪除卡片: ${id}`);
-            }
-        }
-
-        function removeDuplicateCards() {
-            const cards = getCards();
-            const uniqueMap = new Map();
-            let removedCount = 0;
-
-            cards.forEach(card => {
-                const key = card.channel === 'MyCard' ? card.rawMyCard : `${card.barcode1}_${card.barcode2}`;
-                if (!uniqueMap.has(key)) {
-                    uniqueMap.set(key, card);
-                } else {
-                    removedCount++;
-                }
-            });
-
-            if (removedCount > 0) {
-                const cleanCards = Array.from(uniqueMap.values());
-                saveCards(cleanCards);
-                alert(`🧹 已成功清除 ${removedCount} 張重複卡片！`);
-                log(`一鍵去重完成，清除 ${removedCount} 張重複卡片。`);
-            } else {
-                alert("👍 目前本機無重複卡片。");
-            }
-        }
-
-        function syncUnsentCardsToGoogleSheets() {
-            const cards = getCards();
-            const unsynced = cards.filter(c => !c.synced);
-
-            if (unsynced.length === 0) {
-                alert("目前沒有需要同步的新卡片。");
-                return;
-            }
-
-            log(`開始同步 ${unsynced.length} 張卡片至 Google 表單...`);
-
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(unsynced)
-            }).then(() => {
-                cards.forEach(c => c.synced = true);
-                saveCards(cards);
-                alert(`🎉 成功同步 ${unsynced.length} 張卡片！`);
-                log(`雲端同步完成！`);
-            }).catch(err => {
-                alert("同步失敗，請檢查網路。");
-                log(`同步報錯: ${err}`);
-            });
-        }
-
-        function deleteAllArchivedCards() {
-            if (confirm("💥 警告：確定要清空『所有已封存卡片』？此操作無法復原！")) {
-                let cards = getCards().filter(c => c.status !== 'archived');
-                saveCards(cards);
-                log("已清空所有封存卡片。");
-            }
-        }
-
-        function deleteAllCardsEver() {
-            if (confirm("💥 警告：確定要刪除『本機所有卡片』？包含所有有效與已封存紀錄！")) {
-                localStorage.removeItem(STORAGE_KEY);
-                renderFolders();
-                renderCards();
-                log("已徹底清空本機資料庫。");
-            }
-        }
-
-        /* ----------------------------------------------------
-           湊款與支付錢包演算法 (專用於實體超商)
-        ---------------------------------------------------- */
-        function calculateCheckoutCards(targetAmount) {
-            const cards = getCards().filter(c => c.status === 'active' && c.channel === currentStore);
-            if (cards.length === 0) return { selected: [], cardTotal: 0 };
-
-            const maxCap = targetAmount - 1;
-            if (maxCap <= 0) return { selected: [], cardTotal: 0 };
-
-            const n = cards.length;
-            const dp = Array.from({ length: n + 1 }, () => Array(maxCap + 1).fill(0));
-
-            for (let i = 1; i <= n; i++) {
-                const val = Number(cards[i - 1].denom);
-                for (let w = 0; w <= maxCap; w++) {
-                    if (val <= w) {
-                        dp[i][w] = Math.max(dp[i - 1][w], dp[i - 1][w - val] + val);
-                    } else {
-                        dp[i][w] = dp[i - 1][w];
-                    }
-                }
-            }
-
-            let w = maxCap;
-            const selected = [];
-            for (let i = n; i > 0 && w > 0; i--) {
-                if (dp[i][w] !== dp[i - 1][w]) {
-                    selected.push(cards[i - 1]);
-                    w -= Number(cards[i - 1].denom);
-                }
-            }
-
-            const cardTotal = dp[n][maxCap];
-            return { selected, cardTotal };
-        }
-
-        function startCheckoutProcess() {
-            if (currentStore === 'MyCard') {
-                alert("MyCard 為線上點數卡儲值，不支援實體超商湊款結帳錢包。");
-                return;
-            }
-
-            const val = document.getElementById('targetAmountInput').value;
-            const target = parseInt(val, 10);
-            if (isNaN(target) || target <= 0) {
-                alert("請輸入有效的結帳總金額！");
-                return;
-            }
-
-            const result = calculateCheckoutCards(target);
-            if (result.selected.length === 0) {
-                alert(`無法為 NT$ ${target} 自動湊款！可能原因：\n1. 沒有 ${currentStore} 的可用卡片\n2. 面額皆大於應付金額`);
-                return;
-            }
-
-            paymentSelectedCards = result.selected;
-            paymentTargetAmount = target;
-            paymentCurrentIndex = 0;
-
-            openPaymentWallet();
-        }
-
-        function openPaymentWallet() {
-            document.getElementById('paymentModal').style.display = 'flex';
-            renderPaymentCard();
-        }
-
-        function closePaymentWallet() {
-            document.getElementById('paymentModal').style.display = 'none';
-        }
-
-        function renderPaymentCard() {
-            const container = document.getElementById('payCardContainer');
-            const totalCards = paymentSelectedCards.length;
-            const card = paymentSelectedCards[paymentCurrentIndex];
-
-            const cardTotal = paymentSelectedCards.reduce((sum, c) => sum + Number(c.denom), 0);
-            const cashRemaining = paymentTargetAmount - cardTotal;
-
-            document.getElementById('payCashInfo').innerText = `剩餘需付現金: NT$ ${cashRemaining}`;
-            document.getElementById('payCardStep').innerText = `(${paymentCurrentIndex + 1}/${totalCards})`;
-
-            const isLastCard = (paymentCurrentIndex === totalCards - 1);
-
-            let html = '';
-            if (isLastCard) {
-                html += `
-                    <button class="finish-btn-top" onclick="completeTransaction()">
-                        ✅ 完成交易 (自動封存本次 ${totalCards} 張卡片)
-                    </button>
-                `;
-            }
-
-            html += `
-                <div style="width: 100%; text-align: center; margin-bottom: 8px;">
-                    <span class="badge-channel">${card.channel}</span>
-                    <span class="denom-tag" style="font-size: 1.3rem;">NT$ ${card.denom}</span>
-                </div>
-                <div class="barcode-group">
-                    <div>
-                        <div class="barcode-title">主碼: ${card.barcode1}</div>
-                        <div class="barcode-box-large">
-                            <svg id="pay-barcode1" class="barcode-svg-large"></svg>
-                        </div>
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <div class="barcode-title">副碼: ${card.barcode2}</div>
-                        <div class="barcode-box-large">
-                            <svg id="pay-barcode2" class="barcode-svg-large"></svg>
-                        </div>
-                    </div>
-                </div>
-                <div class="pay-nav-row">
-                    <button class="pay-nav-btn" onclick="nextPaymentCard()">下一張 ➡️</button>
-                    <button class="pay-nav-btn" onclick="prevPaymentCard()">⬅️ 上一張</button>
-                </div>
-            `;
-
-            container.innerHTML = html;
-
-            setTimeout(() => {
-                if (typeof JsBarcode !== 'undefined') {
-                    JsBarcode("#pay-barcode1", card.barcode1, { format: "CODE128", width: 2, height: 75, displayValue: true });
-                    JsBarcode("#pay-barcode2", card.barcode2, { format: "CODE128", width: 2, height: 75, displayValue: true });
-                }
-            }, 30);
-        }
-
-        function nextPaymentCard() {
-            if (paymentCurrentIndex < paymentSelectedCards.length - 1) {
-                paymentCurrentIndex++;
-                renderPaymentCard();
-            } else {
-                alert("已是最後一張卡片！");
-            }
-        }
-
-        function prevPaymentCard() {
-            if (paymentCurrentIndex > 0) {
-                paymentCurrentIndex--;
-                renderPaymentCard();
-            }
-        }
-
-        function completeTransaction() {
-            let cards = getCards();
-            const usedIds = new Set(paymentSelectedCards.map(c => c.id));
-            cards.forEach(c => {
-                if (usedIds.has(c.id)) {
-                    c.status = 'archived';
-                }
-            });
-
-            saveCards(cards);
-            log(`🎉 完成交易！已自動封存 ${paymentSelectedCards.length} 張卡片`);
-            alert(`🎉 交易完成！已自動將 ${paymentSelectedCards.length} 張卡片移至「已封存」。`);
-            closePaymentWallet();
-        }
-    </script>
+      }
+      if (isScanning) setTimeout(scanWithFallbackJS, 250);
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.getElementById('hidden-canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "attemptBoth"
+          });
+          if (code) {
+            handleScanSuccess(code.data);
+          } else {
+            alert("未能讀取到清晰的 QR Code，請重試。");
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function stopCamera() {
+      isScanning = false;
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+    }
+
+    function updateHistoryUI() {
+      const historyList = document.getElementById('history-list');
+      const historyCount = document.getElementById('history-count');
+      historyList.innerHTML = '';
+      historyCount.textContent = historyData.length;
+
+      historyData.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'history-item';
+        li.innerHTML = `
+          <div>
+            <div><strong>卡號:</strong> ${item.cardNo}</div>
+            <div style="color: #9ca3af; font-size: 11px;"><strong>密碼:</strong> ${item.cardPwd}</div>
+          </div>
+          <button class="btn-sm btn-copy" onclick="copyText('${item.raw}')">複製完整數據</button>
+        `;
+        historyList.appendChild(li);
+      });
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("已複製內容至剪貼簿！");
+      });
+    }
+
+    function clearHistory() {
+      historyData.length = 0;
+      updateHistoryUI();
+    }
+
+    window.onload = initCheck;
+  </script>
 </body>
 </html>
