@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyCard 智慧點數皮夾 [v1.2.3-NativeDirectImport]</title>
+    <title>MyCard 智慧點數皮夾 [v1.3.0-HybridScanner]</title>
     
     <!-- 引入 jsQR 引擎與相關編碼工具 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
@@ -122,15 +122,45 @@
             font-size: 0.85rem;
         }
 
-        .native-import-box {
+        /* 視訊掃描區塊（完全移除紅線） */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
+            display: none;
+            margin-bottom: 8px;
+            border: 2px solid var(--primary);
+        }
+        .camera-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 180px;
+            height: 180px;
+            border: 2px dashed #10b981;
+            border-radius: 8px;
+            pointer-events: none;
+            box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+        }
+
+        .import-btn-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
             margin-top: 6px;
         }
-        
-        .btn-paste-import {
-            background: #10b981;
+
+        .btn-camera-toggle {
+            background: #ef4444;
             color: white;
             border: none;
             padding: 12px;
@@ -139,16 +169,28 @@
             font-weight: bold;
             cursor: pointer;
             text-align: center;
-            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-paste-import {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
         }
 
         .btn-file-import {
             background: #3b82f6;
             color: white;
             border: none;
-            padding: 12px;
+            padding: 10px;
             border-radius: 6px;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
             text-align: center;
@@ -397,7 +439,7 @@
 <body>
 
     <div class="header">
-        <h1>💳 MyCard 智慧點數皮夾 [v1.2.3-NativeDirectImport]</h1>
+        <h1>💳 MyCard 智慧點數皮夾 [v1.3.0-HybridScanner]</h1>
     </div>
 
     <div class="stats-panel">
@@ -425,13 +467,23 @@
             <input type="number" id="customDenomInput" placeholder="或輸入自訂面額..." oninput="selectCustomDenom(this.value)">
         </div>
 
-        <div class="native-import-box">
+        <!-- 連續鏡頭畫面 -->
+        <div class="camera-container" id="cameraBox">
+            <video id="webcam" playsinline></video>
+            <div class="camera-overlay"></div>
+        </div>
+
+        <div class="import-btn-group">
+            <button class="btn-camera-toggle" id="toggleCameraBtn" onclick="toggleCameraScanner()">
+                📹 2-A、開啟「連續鏡頭極速掃描」
+            </button>
+
             <button class="btn-paste-import" onclick="importFromClipboard()">
-                📋 2-A、貼上手機原生相機掃到的條碼文字
+                📋 2-B、貼上剪貼簿中的條碼內容
             </button>
 
             <label class="btn-file-import">
-                📷 2-B、點此拍照 / 上傳 QR Code 照片解析
+                📷 2-C、選擇照片 / 原生相機拍照解析
                 <input type="file" id="qrFileInput" accept="image/*" capture="environment" style="display:none;" onchange="decodeImageFile(this)">
             </label>
         </div>
@@ -461,7 +513,7 @@
     <div class="panel-card">
         <div class="section-label" style="color: var(--text-sub);">4、工作日誌面板：</div>
         <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] v1.2.3-NativeDirectImport 原生極速導入模組已啟動...</div>
+            <div>[系統初始化] v1.3.0-HybridScanner 雙模掃描引擎已啟動...</div>
         </div>
     </div>
 
@@ -472,6 +524,12 @@
         let currentFolder = 'all';
         const STORAGE_KEY = 'mycard_point_cards_v1';
         const GOOGLE_SCRIPT_URL = ""; 
+
+        // 鏡頭串流與掃描控管變數
+        let videoStream = null;
+        let scanInterval = null;
+        let isScanning = false;
+        let lastScannedText = "";
 
         function log(msg) {
             const consoleEl = document.getElementById('hudConsole');
@@ -537,7 +595,79 @@
             }
         }
 
-        // 方法 2-A：從剪貼簿讀取手機原生相機掃完複製的文字
+        // ----------------------------------------------------
+        // 連續鏡頭掃描核心邏輯 (輕量定時頻率解析，零拉線卡頓)
+        // ----------------------------------------------------
+        async function toggleCameraScanner() {
+            const cameraBox = document.getElementById('cameraBox');
+            const toggleBtn = document.getElementById('toggleCameraBtn');
+
+            if (isScanning) {
+                stopCamera();
+                cameraBox.style.display = 'none';
+                toggleBtn.innerText = '📹 2-A、開啟「連續鏡頭極速掃描」';
+                toggleBtn.style.background = '#ef4444';
+                isScanning = false;
+                log('⏹️ 已關閉連續鏡頭掃描');
+            } else {
+                try {
+                    videoStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                    });
+                    const video = document.getElementById('webcam');
+                    video.srcObject = videoStream;
+                    video.setAttribute('playsinline', true);
+                    await video.play();
+
+                    cameraBox.style.display = 'block';
+                    toggleBtn.innerText = '⏹️ 關閉連續鏡頭掃描';
+                    toggleBtn.style.background = '#4b5563';
+                    isScanning = true;
+                    log('🎥 連續鏡頭已啟動，開始對焦掃描...');
+
+                    // 定時 250ms 解碼一次，避免吃滿 CPU
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    scanInterval = setInterval(() => {
+                        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                                inversionAttempts: "dontInvert",
+                            });
+
+                            if (code && code.data && code.data !== lastScannedText) {
+                                lastScannedText = code.data;
+                                processDecodedText(code.data);
+                                
+                                // 1.5 秒後解鎖防重複觸發
+                                setTimeout(() => { lastScannedText = ""; }, 1500);
+                            }
+                        }
+                    }, 250);
+
+                } catch (err) {
+                    alert('無法存取相機，請確認已授權瀏覽器相機存取權限！');
+                    log(`❌ 相機啟動失敗: ${err.message}`);
+                }
+            }
+        }
+
+        function stopCamera() {
+            if (scanInterval) clearInterval(scanInterval);
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+        }
+
+        // ----------------------------------------------------
+        // 方法 2-B：剪貼簿直接貼上
+        // ----------------------------------------------------
         async function importFromClipboard() {
             try {
                 const text = await navigator.clipboard.readText();
@@ -554,7 +684,9 @@
             }
         }
 
-        // 方法 2-B：上傳相片/原生拍照解碼
+        // ----------------------------------------------------
+        // 方法 2-C：照片 / 原生相機拍攝上傳解碼 (採用您提供的方式)
+        // ----------------------------------------------------
         function decodeImageFile(input) {
             if (!input.files || input.files.length === 0) return;
             const file = input.files[0];
@@ -621,7 +753,6 @@
 
             if (isCardExists(parsed.cardNo)) {
                 log(`⚠️ 卡號 [${parsed.cardNo}] 已存在於皮夾中`);
-                alert(`⚠️ 此卡 (卡號: ${parsed.cardNo}) 已經收錄過囉！`);
                 return;
             }
 
@@ -642,7 +773,6 @@
             saveCards(cards);
 
             log(`🎉 成功加入卡片：[${parsed.cardNo}] (${currentDenom}點)`);
-            alert(`🎉 成功入庫！\n卡號：${parsed.cardNo}\n面額：${currentDenom} 點`);
         }
 
         function editCardDenom(id) {
