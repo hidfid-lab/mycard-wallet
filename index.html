@@ -542,6 +542,8 @@
         .badge-channel.mycard {
             background-color: var(--mycard-blue);
             color: #ffffff;
+            font-size: 1.1rem;
+            padding: 4px 10px;
         }
         .badge-synced {
             background-color: var(--success);
@@ -584,9 +586,10 @@
             width: 100%;
         }
         .barcode-title {
-            font-size: 0.82rem;
-            color: #ccc;
+            font-size: 0.9rem;
+            color: #fff;
             margin-bottom: 4px;
+            font-weight: 500;
         }
         .barcode-box-large {
             background: #ffffff;
@@ -696,8 +699,8 @@
             <div id="statCount">0 張</div>
         </div>
         <div class="stat-item">
-            <div>總剩餘面額</div>
-            <div id="statTotal">NT$ 0</div>
+            <div>總剩餘點數</div>
+            <div id="statTotal">0 點</div>
         </div>
     </div>
 
@@ -705,7 +708,7 @@
     <div class="panel-card" style="border: 1px solid #8b5cf6;">
         <div class="section-label" style="color: #a78bfa; cursor: default;">💳 4、錢包結帳自動湊款</div>
         <div class="checkout-box">
-            <input type="number" id="targetAmountInput" placeholder="輸入結帳總金額 (如: 260)" />
+            <input type="number" id="targetAmountInput" placeholder="輸入結帳總點數 (如: 260)" />
             <button class="checkout-btn" onclick="startCheckoutProcess()">💳 進入支付錢包</button>
         </div>
         <div style="font-size: 0.78rem; color: #aaa;">
@@ -717,10 +720,10 @@
     <div class="panel-card">
         <div class="section-label" style="cursor: default;">1. 選擇通路與卡別</div>
         <div class="option-group" id="storeGroup">
-            <button class="opt-btn mycard-tab active" style="border-color: #00aeef; color: #38bdf8;" onclick="setStore('MyCard')">💳 MyCard</button>
+            <button class="opt-btn mycard-tab active" style="border-color: #00aeef; color: #38bdf8; font-size: 1.1rem; padding: 8px 16px;" onclick="setStore('MyCard')">💳 MyCard</button>
         </div>
 
-        <div class="section-label" style="cursor: default;">2. 選擇本次掃描面額 (NT$)</div>
+        <div class="section-label" style="cursor: default;">2. 選擇本次掃描面額 (點)</div>
         <div class="option-group" id="denomGroup">
             <button class="opt-btn" onclick="setDenom(20)">20</button>
             <button class="opt-btn" onclick="setDenom(25)">25</button>
@@ -731,7 +734,7 @@
             <button class="opt-btn" onclick="setDenom(500)">500</button>
         </div>
         <div class="custom-denom-row">
-            <input type="number" id="customDenomInput" placeholder="或輸入自訂面額..." oninput="selectCustomDenom(this.value)">
+            <input type="number" id="customDenomInput" placeholder="或輸入自訂面額(點)..." oninput="selectCustomDenom(this.value)">
         </div>
 
         <div class="section-label" style="cursor: default; margin-top: 8px;">預設有效期限</div>
@@ -796,10 +799,10 @@
     <div class="payment-modal" id="paymentModal">
         <div class="payment-header">
             <div>
-                <span style="font-weight: bold; color: #a78bfa; font-size: 1.1rem;">💳 專用支付錢包</span>
+                <span style="font-weight: bold; color: #a78bfa; font-size: 1.1rem;">上架專用</span>
                 <span id="payCardStep" style="font-size: 0.85rem; color: #aaa; margin-left: 8px;">(1/1)</span>
             </div>
-            <div class="payment-cash-info" id="payCashInfo">剩餘需付現金: NT$ 0</div>
+            <div class="payment-cash-info" id="payCashInfo">✅✅✅</div>
             <button class="close-pay-btn" onclick="closePaymentWallet()">✕ 離開</button>
         </div>
 
@@ -967,13 +970,13 @@
             const val = document.getElementById('targetAmountInput').value;
             const target = parseInt(val, 10);
             if (isNaN(target) || target <= 0) {
-                alert("請輸入有效的結帳總金額！");
+                alert("請輸入有效的結帳總點數！");
                 return;
             }
 
             const result = calculateCheckoutCards(target);
             if (result.selected.length === 0) {
-                alert(`無法為 NT$ ${target} 自動湊款！可能原因：\n1. 沒有 ${currentStore} 的可用卡片\n2. 面額皆大於應付金額`);
+                alert(`無法為 ${target} 點自動湊款！可能原因：\n1. 沒有 ${currentStore} 的可用卡片\n2. 面額皆大於應付金額`);
                 return;
             }
 
@@ -998,10 +1001,7 @@
             const totalCards = paymentSelectedCards.length;
             const card = paymentSelectedCards[paymentCurrentIndex];
 
-            const cardTotal = paymentSelectedCards.reduce((sum, c) => sum + Number(c.denom), 0);
-            const cashRemaining = paymentTargetAmount - cardTotal;
-
-            document.getElementById('payCashInfo').innerText = `剩餘需付現金: NT$ ${cashRemaining}`;
+            document.getElementById('payCashInfo').innerText = `✅✅✅`;
             document.getElementById('payCardStep').innerText = `(${paymentCurrentIndex + 1}/${totalCards})`;
 
             const isLastCard = (paymentCurrentIndex === totalCards - 1);
@@ -1010,7 +1010,7 @@
             if (isLastCard) {
                 html += `
                     <button class="finish-btn-top" onclick="completeTransaction()">
-                        ✅ 完成交易 (自動封存本次 ${totalCards} 張卡片)
+                        ✅ 完成 (自動封存本次 ${totalCards} 張卡片)
                     </button>
                 `;
             }
@@ -1018,11 +1018,12 @@
             html += `
                 <div style="width: 100%; text-align: center; margin-bottom: 8px;">
                     <span class="badge-channel mycard">MyCard</span>
-                    <span class="denom-tag" style="font-size: 1.3rem;">NT$ ${card.denom}</span>
+                    <span class="denom-tag" style="font-size: 1.3rem;">${card.denom} 點</span>
                 </div>
                 <div class="barcode-group">
                     <div>
                         <div class="barcode-title">卡號: ${card.barcode1}</div>
+                        <div class="barcode-title">密碼: ${card.barcode2}</div>
                     </div>
                     <div style="margin-top: 8px; text-align:center;">
                         <div class="barcode-title">QR Code 條碼</div>
@@ -1057,7 +1058,7 @@
                 paymentCurrentIndex++;
                 renderPaymentCard();
             } else {
-                alert("已是最後一張卡片！上方可直接點擊「完成交易」。");
+                alert("已是最後一張卡片！上方可直接點擊「完成」。");
             }
         }
 
@@ -1259,8 +1260,8 @@
             cards.unshift(newCard);
             saveCards(cards);
 
-            log(`⚡️ 成功收錄卡片！【${currentStore}】卡號/主碼:[${mainCode}] 密碼/副碼:[${subCode}]`);
-            showToast(`🎉 成功收錄：${currentStore} $${currentDenom}`);
+            log(`⚡️ 成功收錄卡片！【${currentStore}】卡號:[${mainCode}] 密碼:[${subCode}]`);
+            showToast(`🎉 成功收錄：${currentStore} ${currentDenom} 點`);
             playSuccessBeep();
 
             startCoolDown();
@@ -1287,14 +1288,14 @@
             const card = cards.find(c => c.id === id);
             if (!card) return;
 
-            const input = prompt(`修改面額 (目前為 NT$ ${card.denom})：`, card.denom);
+            const input = prompt(`修改面額 (目前為 ${card.denom} 點)：`, card.denom);
             if (input !== null) {
                 const newDenom = parseInt(input.trim(), 10);
                 if (!isNaN(newDenom) && newDenom >= 0) {
                     card.denom = newDenom;
                     saveCards(cards);
-                    log(`✏️ 卡片 [${card.barcode1}] 面額修訂為 NT$ ${newDenom}`);
-                    alert(`面額已成功修改為 NT$ ${newDenom}`);
+                    log(`✏️ 卡片 [${card.barcode1}] 面額修訂為 ${newDenom} 點`);
+                    alert(`面額已成功修改為 ${newDenom} 點`);
                 } else {
                     alert("請輸入有效的數字！");
                 }
@@ -1520,7 +1521,7 @@
             const totalBalance = activeCards.reduce((sum, c) => sum + Number(c.denom), 0);
             
             document.getElementById('statCount').innerText = `${activeCards.length} 張`;
-            document.getElementById('statTotal').innerText = `NT$ ${totalBalance}`;
+            document.getElementById('statTotal').innerText = `${totalBalance} 點`;
         }
 
         function renderFolders() {
@@ -1537,7 +1538,7 @@
             const denoms = [...new Set(cards.filter(c => c.status === 'active').map(c => c.denom))].sort((a,b) => a-b);
             denoms.forEach(d => {
                 const count = cards.filter(c => c.status === 'active' && c.denom === d).length;
-                html += `<div class="folder-tab ${currentFolder == d ? 'active' : ''}" onclick="switchFolder('${d}')">NT$ ${d} (${count})</div>`;
+                html += `<div class="folder-tab ${currentFolder == d ? 'active' : ''}" onclick="switchFolder('${d}')">${d} 點 (${count})</div>`;
             });
 
             html += `<div class="folder-tab ${currentFolder === 'archived' ? 'active' : ''}" onclick="switchFolder('archived')">已封存 (${archivedCount})</div>`;
@@ -1578,6 +1579,7 @@
                     <div class="barcode-group">
                         <div>
                             <div class="barcode-title">卡號: ${card.barcode1}</div>
+                            <div class="barcode-title">密碼: ${card.barcode2}</div>
                         </div>
                         <div style="text-align:center;">
                             <div class="barcode-title">QR Code 條碼</div>
@@ -1593,7 +1595,7 @@
                     <div class="card-header">
                         <div>
                             <span class="badge-channel mycard">${card.channel}</span>
-                            <span class="denom-tag">NT$ ${card.denom}</span>
+                            <span class="denom-tag">${card.denom} 點</span>
                             <button class="btn-edit-denom" onclick="editCardDenom(${card.id})">✏️</button>
                             ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
                         </div>
