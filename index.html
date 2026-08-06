@@ -593,12 +593,13 @@
             justify-content: center;
             align-items: center;
         }
-        .barcode-svg-large {
-            width: 100%;
-            height: auto;
-            max-height: 90px;
-            display: block;
-            margin: 0 auto;
+        .mycard-warning-text {
+            color: #ef4444;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 6px;
+            line-height: 1.4;
         }
 
         .action-row {
@@ -1011,9 +1012,6 @@
                 <div class="barcode-group">
                     <div>
                         <div class="barcode-title">卡號: ${card.barcode1}</div>
-                        <div class="barcode-box-large">
-                            <svg id="pay-barcode1" class="barcode-svg-large"></svg>
-                        </div>
                     </div>
                     <div style="margin-top: 8px;">
                         <div class="barcode-title">密碼: ${card.barcode2}</div>
@@ -1024,6 +1022,9 @@
                     <div style="margin-top: 8px; text-align:center;">
                         <div class="barcode-title">QR Code 條碼</div>
                         <div class="barcode-box-large" id="pay-qrcode-box" style="padding:10px;"></div>
+                    </div>
+                    <div class="mycard-warning-text">
+                        會員點數限儲值至my car會員帳號，請點選App下方「儲值購買」後，掃描QR Code
                     </div>
                 </div>
             `;
@@ -1038,11 +1039,6 @@
             container.innerHTML = html;
 
             setTimeout(() => {
-                if (typeof JsBarcode !== 'undefined') {
-                    JsBarcode("#pay-barcode1", card.barcode1, {
-                        format: "CODE128", width: 2, height: 75, displayValue: true, fontSize: 18, fontOptions: "bold", margin: 5
-                    });
-                }
                 const qrBox = document.getElementById('pay-qrcode-box');
                 if (qrBox) {
                     qrBox.innerHTML = '';
@@ -1563,9 +1559,6 @@
                     <div class="barcode-group">
                         <div>
                             <div class="barcode-title">卡號: ${card.barcode1}</div>
-                            <div class="barcode-box-large">
-                                <svg id="barcode1-${card.id}" class="barcode-svg-large"></svg>
-                            </div>
                         </div>
                         <div>
                             <div class="barcode-title">密碼: ${card.barcode2}</div>
@@ -1576,6 +1569,9 @@
                         <div style="text-align:center;">
                             <div class="barcode-title">QR Code 條碼</div>
                             <div class="barcode-box-large" id="qrcode-${card.id}" style="padding:8px;"></div>
+                        </div>
+                        <div class="mycard-warning-text">
+                            會員點數限儲值至my car會員帳號，請點選App下方「儲值購買」後，掃描QR Code
                         </div>
                     </div>
                 `;
@@ -1606,11 +1602,6 @@
 
                 setTimeout(() => {
                     try {
-                        if (typeof JsBarcode !== 'undefined') {
-                            JsBarcode(`#barcode1-${card.id}`, card.barcode1, {
-                                format: "CODE128", width: 2, height: 70, displayValue: true, fontSize: 18, fontOptions: "bold", background: "#ffffff", lineColor: "#000000", margin: 5
-                            });
-                        }
                         const qrBox = document.getElementById(`qrcode-${card.id}`);
                         if (qrBox) {
                             qrBox.innerHTML = '';
