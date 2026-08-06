@@ -212,7 +212,7 @@
             gap: 8px;
             margin-bottom: 10px;
         }
-        .custom-denom-row input {
+        .custom-denom-row input, .custom-expiry-row input {
             flex: 1;
             background: #2a2a2a;
             border: 1px solid #444;
@@ -220,6 +220,13 @@
             padding: 8px;
             border-radius: 6px;
             font-size: 0.9rem;
+        }
+
+        .custom-expiry-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
         }
 
         /* 折疊規則設定區 */
@@ -560,15 +567,13 @@
             font-size: 1.05rem;
         }
 
-        .btn-edit-denom {
-            background: #2a2a2a;
-            border: 1px solid #555;
+        .btn-edit-denom, .btn-edit-expiry {
+            background: transparent;
+            border: none;
             color: #fbbf24;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
+            padding: 0 4px;
+            font-size: 0.85rem;
             cursor: pointer;
-            margin-left: 6px;
         }
 
         .barcode-group {
@@ -720,13 +725,18 @@
             <button class="opt-btn" onclick="setDenom(20)">20</button>
             <button class="opt-btn" onclick="setDenom(25)">25</button>
             <button class="opt-btn" onclick="setDenom(35)">35</button>
-            <button class="opt-btn active" onclick="setDenom(50)">50</button>
-            <button class="opt-btn" onclick="setDenom(100)">100</button>
+            <button class="opt-btn" onclick="setDenom(50)">50</button>
+            <button class="opt-btn active" onclick="setDenom(100)">100</button>
             <button class="opt-btn" onclick="setDenom(150)">150</button>
             <button class="opt-btn" onclick="setDenom(500)">500</button>
         </div>
         <div class="custom-denom-row">
             <input type="number" id="customDenomInput" placeholder="或輸入自訂面額..." oninput="selectCustomDenom(this.value)">
+        </div>
+
+        <div class="section-label" style="cursor: default; margin-top: 8px;">預設有效期限</div>
+        <div class="custom-expiry-row">
+            <input type="text" id="customExpiryInput" value="2027 年 6 月 30 日" placeholder="請輸入有效期限..." oninput="currentExpiry = this.value">
         </div>
 
         <div class="main-btn-group">
@@ -801,7 +811,8 @@
     <script>
         // 全域變數
         let currentStore = "MyCard";
-        let currentDenom = 50;
+        let currentDenom = 100;
+        let currentExpiry = "2027 年 6 月 30 日";
         let currentFolder = 'all';
 
         let isProcessing = false;
@@ -1013,18 +1024,12 @@
                     <div>
                         <div class="barcode-title">卡號: ${card.barcode1}</div>
                     </div>
-                    <div style="margin-top: 8px;">
-                        <div class="barcode-title">密碼: ${card.barcode2}</div>
-                        <div class="barcode-box-large" style="background:#111; color:#38bdf8; font-size:1.2rem; font-weight:bold; font-family:monospace; padding:12px;">
-                            ${card.barcode2}
-                        </div>
-                    </div>
                     <div style="margin-top: 8px; text-align:center;">
                         <div class="barcode-title">QR Code 條碼</div>
                         <div class="barcode-box-large" id="pay-qrcode-box" style="padding:10px;"></div>
                     </div>
                     <div class="mycard-warning-text">
-                        會員點數限儲值至my car會員帳號，請點選App下方「儲值購買」後，掃描QR Code
+                        會員點數限儲值至my car會員帳號<br>請點選App下方「儲值購買」後，掃描QR Code
                     </div>
                 </div>
             `;
@@ -1066,7 +1071,7 @@
         function completeTransaction() {
             let cards = getCards();
             const usedIds = new Set(paymentSelectedCards.map(c => c.id));
-            const nowStr = new Date().toLocaleString();
+            const nowStr = new Date().toLocaleDateString();
 
             cards.forEach(c => {
                 if (usedIds.has(c.id)) {
@@ -1245,7 +1250,7 @@
                 barcode2: subCode,
                 denom: currentDenom,
                 channel: currentStore,
-                expiry: "無期限",
+                expiry: currentExpiry,
                 status: "active",
                 synced: false,
                 date: new Date().toLocaleDateString()
@@ -1293,6 +1298,20 @@
                 } else {
                     alert("請輸入有效的數字！");
                 }
+            }
+        }
+
+        function editCardExpiry(id) {
+            let cards = getCards();
+            const card = cards.find(c => c.id === id);
+            if (!card) return;
+
+            const input = prompt(`修改有效期限 (目前為 ${card.expiry})：`, card.expiry);
+            if (input !== null && input.trim() !== "") {
+                card.expiry = input.trim();
+                saveCards(cards);
+                log(`✏️ 卡片 [${card.barcode1}] 有效期限修訂為 ${card.expiry}`);
+                alert(`有效期限已成功修改為 ${card.expiry}`);
             }
         }
 
@@ -1425,7 +1444,7 @@
                     for (let i = 0; i < trulyNewCards.length; i++) {
                         const card = trulyNewCards[i];
                         const payload = {
-                            date: new Date().toLocaleString(),
+                            date: new Date().toLocaleDateString(),
                             barcode1: card.barcode1,
                             barcode2: card.barcode2,
                             denom: card.denom
@@ -1560,18 +1579,12 @@
                         <div>
                             <div class="barcode-title">卡號: ${card.barcode1}</div>
                         </div>
-                        <div>
-                            <div class="barcode-title">密碼: ${card.barcode2}</div>
-                            <div class="barcode-box-large" style="background:#111; color:#38bdf8; font-size:1.1rem; font-weight:bold; font-family:monospace; padding:10px;">
-                                ${card.barcode2}
-                            </div>
-                        </div>
                         <div style="text-align:center;">
                             <div class="barcode-title">QR Code 條碼</div>
                             <div class="barcode-box-large" id="qrcode-${card.id}" style="padding:8px;"></div>
                         </div>
                         <div class="mycard-warning-text">
-                            會員點數限儲值至my car會員帳號，請點選App下方「儲值購買」後，掃描QR Code
+                            會員點數限儲值至my car會員帳號<br>請點選App下方「儲值購買」後，掃描QR Code
                         </div>
                     </div>
                 `;
@@ -1581,7 +1594,7 @@
                         <div>
                             <span class="badge-channel mycard">${card.channel}</span>
                             <span class="denom-tag">NT$ ${card.denom}</span>
-                            <button class="btn-edit-denom" onclick="editCardDenom(${card.id})">✏️ 修改</button>
+                            <button class="btn-edit-denom" onclick="editCardDenom(${card.id})">✏️</button>
                             ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
                         </div>
                         <div>
@@ -1589,8 +1602,8 @@
                         </div>
                     </div>
                     <div style="font-size: 0.8rem; color: #bbb; display: flex; justify-content: space-between;">
-                        <span>效期：${card.expiry}</span>
-                        <span>收入日期：${card.date}</span>
+                        <span>效期：${card.expiry || '2027 年 6 月 30 日'} <button class="btn-edit-expiry" onclick="editCardExpiry(${card.id})">✏️</button></span>
+                        <span>收錄：${card.date}</span>
                     </div>
                     ${barcodeContent}
                     <div class="action-row">
