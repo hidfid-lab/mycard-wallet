@@ -6,7 +6,6 @@
     <title>快樂小七 - 智慧皮夾 (MyCard 整合版)</title>
     
     <!-- 第三方套件載入 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
@@ -69,33 +68,6 @@
             font-size: 1.1rem;
             font-weight: bold;
             color: #34d399;
-        }
-
-        /* 超商相機畫面區 */
-        .camera-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 480px;
-            height: 220px;
-            margin: 0 auto 12px auto;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: #000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: none;
-            border: 1px solid #555;
-        }
-
-        #reader {
-            width: 100%;
-            height: 100%;
-        }
-        #reader button, #reader select { display: none !important; }
-        #reader video {
-            object-fit: cover !important;
-            width: 100% !important;
-            height: 100% !important;
-            filter: contrast(1.2) brightness(1.02);
         }
 
         /* MyCard 獨立鏡頭容器 */
@@ -739,11 +711,7 @@
     <div class="panel-card">
         <div class="section-label" style="cursor: default;">1. 選擇通路與卡別</div>
         <div class="option-group" id="storeGroup">
-            <button class="opt-btn active" onclick="setStore('7-ELEVEN')">7-ELEVEN</button>
-            <button class="opt-btn" onclick="setStore('全家')">全家</button>
-            <button class="opt-btn" onclick="setStore('萊爾富')">萊爾富</button>
-            <button class="opt-btn" onclick="setStore('OK超商')">OK超商</button>
-            <button class="opt-btn mycard-tab" style="border-color: #00aeef; color: #38bdf8;" onclick="setStore('MyCard')">💳 MyCard</button>
+            <button class="opt-btn mycard-tab active" style="border-color: #00aeef; color: #38bdf8;" onclick="setStore('MyCard')">💳 MyCard</button>
         </div>
 
         <div class="section-label" style="cursor: default;">2. 選擇本次掃描面額 (NT$)</div>
@@ -766,24 +734,14 @@
         </div>
     </div>
 
-    <!-- 相機畫面區 (超商) -->
-    <div class="camera-wrapper" id="cameraWrapper">
-        <div class="laser-line" id="laserLine"></div>
-        <div class="status-tracker">
-            <span id="tagMain" class="status-tag">主碼: 待捕獲</span>
-            <span id="tagSub" class="status-tag">副碼: 待捕獲</span>
-        </div>
-        <div class="toast-notify" id="toastNotify">
-            <span id="toastMsg">🎉 雙條碼完整入庫</span>
-        </div>
-        <div id="reader"></div>
-    </div>
-
-    <!-- 相機畫面區 (MyCard 原生鏡頭) -->
+    <!-- MyCard 原生鏡頭容器 -->
     <div id="mycard-video-container">
         <video id="mycard-video" playsinline></video>
         <div class="mycard-overlay-box">
             <div class="laser-line" id="mycardLaser" style="display:block;"></div>
+        </div>
+        <div class="toast-notify" id="toastNotify">
+            <span id="toastMsg">🎉 掃描成功入庫</span>
         </div>
     </div>
 
@@ -841,20 +799,13 @@
 
     <script>
         // 全域變數
-        let currentStore = "7-ELEVEN";
+        let currentStore = "MyCard";
         let currentDenom = 50;
         let currentFolder = 'all';
 
-        let html5QrcodeScanner = null;
         let isProcessing = false;
         let isCoolingDown = false;
-        const COOLDOWN_MS = 2500;
-
-        let lastScanTimestamp = 0;
-        const SCAN_THROTTLE_MS = 150;
-
-        let pendingMain = { code: null, time: 0 };
-        let pendingSub = { code: null, time: 0 };
+        const COOLDOWN_MS = 1500;
 
         // MyCard 鏡頭控制變數
         let mycardStream = null;
@@ -1052,53 +1003,30 @@
                 `;
             }
 
-            if (card.channel === 'MyCard') {
-                html += `
-                    <div style="width: 100%; text-align: center; margin-bottom: 8px;">
-                        <span class="badge-channel mycard">MyCard</span>
-                        <span class="denom-tag" style="font-size: 1.3rem;">NT$ ${card.denom}</span>
-                    </div>
-                    <div class="barcode-group">
-                        <div>
-                            <div class="barcode-title">卡號: ${card.barcode1}</div>
-                            <div class="barcode-box-large">
-                                <svg id="pay-barcode1" class="barcode-svg-large"></svg>
-                            </div>
-                        </div>
-                        <div style="margin-top: 8px;">
-                            <div class="barcode-title">密碼: ${card.barcode2}</div>
-                            <div class="barcode-box-large" style="background:#111; color:#38bdf8; font-size:1.2rem; font-weight:bold; font-family:monospace; padding:12px;">
-                                ${card.barcode2}
-                            </div>
-                        </div>
-                        <div style="margin-top: 8px; text-align:center;">
-                            <div class="barcode-title">QR Code 條碼</div>
-                            <div class="barcode-box-large" id="pay-qrcode-box" style="padding:10px;"></div>
+            html += `
+                <div style="width: 100%; text-align: center; margin-bottom: 8px;">
+                    <span class="badge-channel mycard">MyCard</span>
+                    <span class="denom-tag" style="font-size: 1.3rem;">NT$ ${card.denom}</span>
+                </div>
+                <div class="barcode-group">
+                    <div>
+                        <div class="barcode-title">卡號: ${card.barcode1}</div>
+                        <div class="barcode-box-large">
+                            <svg id="pay-barcode1" class="barcode-svg-large"></svg>
                         </div>
                     </div>
-                `;
-            } else {
-                html += `
-                    <div style="width: 100%; text-align: center; margin-bottom: 8px;">
-                        <span class="badge-channel">${card.channel}</span>
-                        <span class="denom-tag" style="font-size: 1.3rem;">NT$ ${card.denom}</span>
-                    </div>
-                    <div class="barcode-group">
-                        <div>
-                            <div class="barcode-title">主碼: ${card.barcode1}</div>
-                            <div class="barcode-box-large">
-                                <svg id="pay-barcode1" class="barcode-svg-large"></svg>
-                            </div>
-                        </div>
-                        <div style="margin-top: 8px;">
-                            <div class="barcode-title">副碼: ${card.barcode2}</div>
-                            <div class="barcode-box-large">
-                                <svg id="pay-barcode2" class="barcode-svg-large"></svg>
-                            </div>
+                    <div style="margin-top: 8px;">
+                        <div class="barcode-title">密碼: ${card.barcode2}</div>
+                        <div class="barcode-box-large" style="background:#111; color:#38bdf8; font-size:1.2rem; font-weight:bold; font-family:monospace; padding:12px;">
+                            ${card.barcode2}
                         </div>
                     </div>
-                `;
-            }
+                    <div style="margin-top: 8px; text-align:center;">
+                        <div class="barcode-title">QR Code 條碼</div>
+                        <div class="barcode-box-large" id="pay-qrcode-box" style="padding:10px;"></div>
+                    </div>
+                </div>
+            `;
 
             html += `
                 <div class="pay-nav-row">
@@ -1114,18 +1042,11 @@
                     JsBarcode("#pay-barcode1", card.barcode1, {
                         format: "CODE128", width: 2, height: 75, displayValue: true, fontSize: 18, fontOptions: "bold", margin: 5
                     });
-                    if (card.channel !== 'MyCard') {
-                        JsBarcode("#pay-barcode2", card.barcode2, {
-                            format: "CODE128", width: 2, height: 75, displayValue: true, fontSize: 18, fontOptions: "bold", margin: 5
-                        });
-                    }
                 }
-                if (card.channel === 'MyCard') {
-                    const qrBox = document.getElementById('pay-qrcode-box');
-                    if (qrBox) {
-                        qrBox.innerHTML = '';
-                        new QRCode(qrBox, { text: `${card.barcode1}|${card.barcode2}`, width: 120, height: 120 });
-                    }
+                const qrBox = document.getElementById('pay-qrcode-box');
+                if (qrBox) {
+                    qrBox.innerHTML = '';
+                    new QRCode(qrBox, { text: `${card.barcode1}|${card.barcode2}`, width: 120, height: 120 });
                 }
             }, 30);
         }
@@ -1165,15 +1086,6 @@
         }
 
         // 音效控制
-        function playSoftPing() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                osc.type = 'sine'; osc.frequency.value = 1200;
-                osc.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.05);
-            } catch (e) {}
-        }
-
         function playSuccessBeep() {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             try {
@@ -1203,48 +1115,10 @@
         // 啟動鏡頭路由
         function startCamera() {
             stopCamera();
-            if (currentStore === 'MyCard') {
-                startMyCardCamera();
-            } else {
-                startCvsCamera();
-            }
+            startMyCardCamera();
         }
 
-        /* 1. 超商雙條碼相機 */
-        async function startCvsCamera() {
-            log("► 啟動超商極速雙條碼掃描...");
-            const wrapper = document.getElementById('cameraWrapper');
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('stopBtn').style.display = 'block';
-            wrapper.style.display = 'block';
-            document.getElementById('laserLine').style.display = 'block';
-
-            resetBuffer();
-
-            try {
-                if (!html5QrcodeScanner) {
-                    html5QrcodeScanner = new Html5Qrcode("reader", {
-                        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-                    });
-                }
-
-                const config = { 
-                    fps: 30,
-                    qrbox: { width: 280, height: 140 },
-                    videoConstraints: { facingMode: "environment", width: { min: 1280, ideal: 1920 }, height: { min: 720, ideal: 1080 } },
-                    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39 ]
-                };
-
-                await html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
-                log("📷 超商鏡頭已啟動！請對準條碼");
-            } catch (err) {
-                log("❌ 開啟鏡頭失敗: " + err);
-                alert("相機開啟失敗！");
-                stopCamera();
-            }
-        }
-
-        /* 2. MyCard 原生獨立鏡頭邏輯 */
+        /* MyCard 原生獨立鏡頭邏輯 */
         async function initMyCardDetector() {
             if ('BarcodeDetector' in window) {
                 try { barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
@@ -1266,6 +1140,7 @@
                 video.srcObject = mycardStream;
                 await video.play();
                 isMyCardScanning = true;
+                isCoolingDown = false;
 
                 if (barcodeDetector) {
                     requestAnimationFrame(scanMyCardNative);
@@ -1282,36 +1157,40 @@
 
         async function scanMyCardNative() {
             if (!isMyCardScanning) return;
-            const video = document.getElementById('mycard-video');
-            try {
-                const barcodes = await barcodeDetector.detect(video);
-                if (barcodes.length > 0) {
-                    handleMyCardScanResult(barcodes[0].rawValue);
-                    return;
-                }
-            } catch (err) {}
+            if (!isCoolingDown) {
+                const video = document.getElementById('mycard-video');
+                try {
+                    const barcodes = await barcodeDetector.detect(video);
+                    if (barcodes.length > 0) {
+                        handleMyCardScanResult(barcodes[0].rawValue);
+                    }
+                } catch (err) {}
+            }
             if (isMyCardScanning) requestAnimationFrame(scanMyCardNative);
         }
 
         function scanMyCardFallback() {
             if (!isMyCardScanning) return;
-            const video = document.getElementById('mycard-video');
-            const canvas = document.getElementById('hidden-canvas');
-            const ctx = canvas.getContext('2d');
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
-                if (code) {
-                    handleMyCardScanResult(code.data);
-                    return;
+            if (!isCoolingDown) {
+                const video = document.getElementById('mycard-video');
+                const canvas = document.getElementById('hidden-canvas');
+                const ctx = canvas.getContext('2d');
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+                    if (code) {
+                        handleMyCardScanResult(code.data);
+                    }
                 }
             }
             if (isMyCardScanning) setTimeout(scanMyCardFallback, 200);
         }
 
         function handleMyCardScanResult(rawData) {
+            if (isCoolingDown || isProcessing) return;
+            
             let cardNo = "----", cardPwd = "----";
             if (rawData.includes('|')) {
                 const parts = rawData.split('|').map(p => p.trim());
@@ -1326,52 +1205,18 @@
 
         // 停止所有鏡頭
         async function stopCamera() {
-            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-                try { await html5QrcodeScanner.stop(); } catch (e) {}
-            }
             isMyCardScanning = false;
             if (mycardStream) {
                 mycardStream.getTracks().forEach(t => t.stop());
                 mycardStream = null;
             }
 
-            document.getElementById('cameraWrapper').style.display = 'none';
             document.getElementById('mycard-video-container').style.display = 'none';
             document.getElementById('startBtn').style.display = 'block';
             document.getElementById('stopBtn').style.display = 'none';
             document.getElementById('scan-status').innerText = "";
             isCoolingDown = false;
-            resetBuffer();
-        }
-
-        function resetBuffer() {
-            pendingMain = { code: null, time: 0 };
-            pendingSub = { code: null, time: 0 };
-            const tagMain = document.getElementById('tagMain');
-            const tagSub = document.getElementById('tagSub');
-            if (tagMain) { tagMain.innerText = `主碼: 待捕獲`; tagMain.className = 'status-tag'; }
-            if (tagSub) { tagSub.innerText = `副碼: 待捕獲`; tagSub.className = 'status-tag'; }
-        }
-
-        function checkCodeValid(val, prefix) {
-            const minLen = parseInt(document.getElementById('minLenInput').value || 8, 10);
-            const maxLen = parseInt(document.getElementById('maxLenInput').value || 16, 10);
-
-            if (val.length < minLen || val.length > maxLen) return false;
-
-            const isNum = /^\d+$/.test(val);
-            const isAlpha = /^[A-Za-z]+$/.test(val);
-            const isMix = /^[A-Za-z0-9]+$/.test(val);
-
-            const allowNum = document.getElementById(prefix + 'Num').checked;
-            const allowMix = document.getElementById(prefix + 'Mix').checked;
-            const allowAlpha = document.getElementById(prefix + 'Alpha').checked;
-
-            if (allowNum && isNum) return true;
-            if (allowAlpha && isAlpha) return true;
-            if (allowMix && isMix) return true;
-
-            return false;
+            isProcessing = false;
         }
 
         function isCodeExistsInDatabase(code) {
@@ -1379,56 +1224,10 @@
             return cards.some(c => c.barcode1 === code || c.barcode2 === code);
         }
 
-        function onScanSuccess(decodedText) {
-            const now = Date.now();
-            if (now - lastScanTimestamp < SCAN_THROTTLE_MS) return;
-            lastScanTimestamp = now;
-
-            if (isProcessing || isCoolingDown) return;
-
-            const val = decodedText.trim().toUpperCase();
-
-            if (isCodeExistsInDatabase(val)) {
-                log(`⚠️ 條碼 [${val}] 已存在資料庫，自動拒絕`);
-                showToast(`⚠️ 偵測到已有條碼，請換卡！`);
-                playDuplicateBeep();
-                return;
-            }
-
-            const isMainValid = checkCodeValid(val, 'main');
-            const isSubValid = checkCodeValid(val, 'sub');
-
-            if (isMainValid) {
-                if (pendingMain.code !== val) {
-                    pendingMain = { code: val, time: now };
-                    const tagMain = document.getElementById('tagMain');
-                    tagMain.innerText = `主碼: ${val.substring(0, 6)}...`;
-                    tagMain.className = 'status-tag ok';
-                    playSoftPing();
-                    log(`🎯 擷取主條碼: ${val}`);
-                } else {
-                    pendingMain.time = now;
-                }
-            } else if (isSubValid) {
-                if (pendingSub.code !== val) {
-                    pendingSub = { code: val, time: now };
-                    const tagSub = document.getElementById('tagSub');
-                    tagSub.innerText = `副碼: ${val}`;
-                    tagSub.className = 'status-tag ok';
-                    playSoftPing();
-                    log(`🎯 擷取副條碼: ${val}`);
-                } else {
-                    pendingSub.time = now;
-                }
-            }
-
-            if (pendingMain.code && pendingSub.code && Math.abs(pendingMain.time - pendingSub.time) < 5000) {
-                commitFullCard(pendingMain.code, pendingSub.code);
-            }
-        }
-
         function commitFullCard(mainCode, subCode) {
             isProcessing = true;
+            isCoolingDown = true;
+
             const cards = getCards();
 
             const isDuplicate = cards.some(c => c.barcode1 === mainCode || c.barcode2 === subCode);
@@ -1436,9 +1235,9 @@
                 log(`⚠️ 含有重複卡號/條碼，已跳過：[${mainCode}]`);
                 showToast(`⚠️ 資料庫已有此卡片條碼！`);
                 playDuplicateBeep();
-                resetBuffer();
                 setTimeout(() => {
                     isProcessing = false;
+                    isCoolingDown = false;
                     document.getElementById('toastNotify').style.display = 'none';
                 }, 1200);
                 return;
@@ -1463,26 +1262,15 @@
             showToast(`🎉 成功收錄：${currentStore} $${currentDenom}`);
             playSuccessBeep();
 
-            resetBuffer();
             startCoolDown();
         }
 
         function startCoolDown() {
-            isCoolingDown = true;
-            const laser = document.getElementById('laserLine');
-            const tagMain = document.getElementById('tagMain');
-            const tagSub = document.getElementById('tagSub');
-
-            if (laser) laser.style.display = 'none';
-            if (tagMain) { tagMain.innerText = '⏳ 換卡冷卻中...'; tagMain.className = 'status-tag cooldown'; }
-            if (tagSub) { tagSub.innerText = '請抽換卡片'; tagSub.className = 'status-tag cooldown'; }
-
+            const toast = document.getElementById('toastNotify');
             setTimeout(() => {
                 isCoolingDown = false;
                 isProcessing = false;
-                document.getElementById('toastNotify').style.display = 'none';
-                if (laser) laser.style.display = 'block';
-                resetBuffer();
+                if (toast) toast.style.display = 'none';
                 log("✨ 冷卻完畢，準備接收下一張卡片！");
             }, COOLDOWN_MS);
         }
@@ -1768,55 +1556,34 @@
             listEl.innerHTML = '';
             filtered.forEach(card => {
                 const isArchived = card.status === 'archived';
-                const isMyCard = card.channel === 'MyCard';
                 const item = document.createElement('div');
-                item.className = `card-item ${isMyCard ? 'mycard-style' : ''} ${isArchived ? 'archived' : ''}`;
+                item.className = `card-item mycard-style ${isArchived ? 'archived' : ''}`;
                 
-                let barcodeContent = '';
-                if (isMyCard) {
-                    barcodeContent = `
-                        <div class="barcode-group">
-                            <div>
-                                <div class="barcode-title">卡號: ${card.barcode1}</div>
-                                <div class="barcode-box-large">
-                                    <svg id="barcode1-${card.id}" class="barcode-svg-large"></svg>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="barcode-title">密碼: ${card.barcode2}</div>
-                                <div class="barcode-box-large" style="background:#111; color:#38bdf8; font-size:1.1rem; font-weight:bold; font-family:monospace; padding:10px;">
-                                    ${card.barcode2}
-                                </div>
-                            </div>
-                            <div style="text-align:center;">
-                                <div class="barcode-title">QR Code 條碼</div>
-                                <div class="barcode-box-large" id="qrcode-${card.id}" style="padding:8px;"></div>
+                let barcodeContent = `
+                    <div class="barcode-group">
+                        <div>
+                            <div class="barcode-title">卡號: ${card.barcode1}</div>
+                            <div class="barcode-box-large">
+                                <svg id="barcode1-${card.id}" class="barcode-svg-large"></svg>
                             </div>
                         </div>
-                    `;
-                } else {
-                    barcodeContent = `
-                        <div class="barcode-group">
-                            <div>
-                                <div class="barcode-title">主條碼: ${card.barcode1}</div>
-                                <div class="barcode-box-large">
-                                    <svg id="barcode1-${card.id}" class="barcode-svg-large"></svg>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="barcode-title">副條碼: ${card.barcode2}</div>
-                                <div class="barcode-box-large">
-                                    <svg id="barcode2-${card.id}" class="barcode-svg-large"></svg>
-                                </div>
+                        <div>
+                            <div class="barcode-title">密碼: ${card.barcode2}</div>
+                            <div class="barcode-box-large" style="background:#111; color:#38bdf8; font-size:1.1rem; font-weight:bold; font-family:monospace; padding:10px;">
+                                ${card.barcode2}
                             </div>
                         </div>
-                    `;
-                }
+                        <div style="text-align:center;">
+                            <div class="barcode-title">QR Code 條碼</div>
+                            <div class="barcode-box-large" id="qrcode-${card.id}" style="padding:8px;"></div>
+                        </div>
+                    </div>
+                `;
 
                 item.innerHTML = `
                     <div class="card-header">
                         <div>
-                            <span class="badge-channel ${isMyCard ? 'mycard' : ''}">${card.channel}</span>
+                            <span class="badge-channel mycard">${card.channel}</span>
                             <span class="denom-tag">NT$ ${card.denom}</span>
                             <button class="btn-edit-denom" onclick="editCardDenom(${card.id})">✏️ 修改</button>
                             ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
@@ -1843,18 +1610,11 @@
                             JsBarcode(`#barcode1-${card.id}`, card.barcode1, {
                                 format: "CODE128", width: 2, height: 70, displayValue: true, fontSize: 18, fontOptions: "bold", background: "#ffffff", lineColor: "#000000", margin: 5
                             });
-                            if (!isMyCard) {
-                                JsBarcode(`#barcode2-${card.id}`, card.barcode2, {
-                                    format: "CODE128", width: 2, height: 70, displayValue: true, fontSize: 18, fontOptions: "bold", background: "#ffffff", lineColor: "#000000", margin: 5
-                                });
-                            }
                         }
-                        if (isMyCard) {
-                            const qrBox = document.getElementById(`qrcode-${card.id}`);
-                            if (qrBox) {
-                                qrBox.innerHTML = '';
-                                new QRCode(qrBox, { text: `${card.barcode1}|${card.barcode2}`, width: 100, height: 100 });
-                            }
+                        const qrBox = document.getElementById(`qrcode-${card.id}`);
+                        if (qrBox) {
+                            qrBox.innerHTML = '';
+                            new QRCode(qrBox, { text: `${card.barcode1}|${card.barcode2}`, width: 100, height: 100 });
                         }
                     } catch (e) {
                         console.error('條碼繪製失敗', e);
