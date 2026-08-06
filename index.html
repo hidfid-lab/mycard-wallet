@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>快樂小七 - 智慧皮夾 (MyCard 整合版)</title>
+    <title>MyCard 智慧點數皮夾</title>
     
     <!-- 第三方套件載入 -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -205,6 +205,16 @@
             background: var(--mycard-blue);
             border-color: var(--mycard-blue);
             color: #fff;
+        }
+        .btn-add-store {
+            background: #374151;
+            border: 1px dashed #6b7280;
+            color: #38bdf8;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         .custom-denom-row {
@@ -652,16 +662,16 @@
 <body>
 
     <div class="header">
-        <h1>🏪 快樂小七萬能收銀台</h1>
+        <h1>💳 MyCard 智慧點數皮夾</h1>
     </div>
 
     <!-- 0、條碼參數設定 -->
     <div class="panel-card">
         <div class="section-label" onclick="toggleConfigPanel()">
             <span>⚙️ 0、條碼參數設定</span>
-            <span id="configToggleIcon">▼</span>
+            <span id="configToggleIcon">▲</span>
         </div>
-        <div id="configContent">
+        <div id="configContent" style="display: none;">
             <div class="config-box">
                 <div class="config-row">
                     <label class="title-label">全域長度限制：</label>
@@ -720,7 +730,7 @@
     <div class="panel-card">
         <div class="section-label" style="cursor: default;">1. 選擇通路與卡別</div>
         <div class="option-group" id="storeGroup">
-            <button class="opt-btn mycard-tab active" style="border-color: #00aeef; color: #38bdf8; font-size: 1.1rem; padding: 8px 16px;" onclick="setStore('MyCard')">💳 MyCard</button>
+            <!-- 動態繪製通路按鈕 -->
         </div>
 
         <div class="section-label" style="cursor: default;">2. 選擇本次掃描面額 (點)</div>
@@ -788,7 +798,7 @@
     <div class="panel-card">
         <div class="section-label" style="color: var(--text-sub); cursor: default;">6、工作日誌面板：</div>
         <div class="hud-console" id="hudConsole">
-            <div>[系統初始化] 快樂小七 萬能收銀台系統載入完成...</div>
+            <div>[系統初始化] MyCard 智慧點數皮夾系統載入完成...</div>
         </div>
     </div>
 
@@ -814,6 +824,7 @@
     <script>
         // 全域變數
         let currentStore = "MyCard";
+        let storeList = ["MyCard"];
         let currentDenom = 100;
         let currentExpiry = "2027 年 6 月 30 日";
         let currentFolder = 'all';
@@ -833,6 +844,7 @@
         let paymentTargetAmount = 0;
 
         const STORAGE_KEY = 'happy_seven_gift_cards_v3';
+        const STORES_KEY = 'mycard_wallet_custom_stores';
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhG25duFyY9RTwbrSkeJFbiuYh9ZLfMDVpPyHXpkHtL6RHd6t8YxHXDjXBOkXqkoWdzA/exec";
 
         function log(msg) {
@@ -846,11 +858,56 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            loadStores();
+            renderStoreGroup();
             renderFolders();
             renderCards();
             updateBanner();
             initMyCardDetector();
         });
+
+        function loadStores() {
+            const savedStores = localStorage.getItem(STORES_KEY);
+            if (savedStores) {
+                try {
+                    storeList = JSON.parse(savedStores);
+                    if (!storeList.includes("MyCard")) storeList.unshift("MyCard");
+                } catch(e) {
+                    storeList = ["MyCard"];
+                }
+            }
+        }
+
+        function saveStores() {
+            localStorage.setItem(STORES_KEY, JSON.stringify(storeList));
+        }
+
+        function renderStoreGroup() {
+            const group = document.getElementById('storeGroup');
+            let html = '';
+            storeList.forEach(s => {
+                const isActive = (s === currentStore);
+                const activeClass = isActive ? (s === 'MyCard' ? 'mycard-tab active' : 'active') : '';
+                html += `<button class="opt-btn ${activeClass}" style="${s === 'MyCard' ? 'border-color: #00aeef; color: #38bdf8;' : ''}" onclick="setStore('${s}')">💳 ${s}</button>`;
+            });
+            html += `<button class="btn-add-store" onclick="addNewStore()">➕ 新增通路/卡別</button>`;
+            group.innerHTML = html;
+        }
+
+        function addNewStore() {
+            const input = prompt("請輸入自訂通路或卡別名稱 (例如: GASH, STEAM):");
+            if (input && input.trim() !== "") {
+                const name = input.trim();
+                if (!storeList.includes(name)) {
+                    storeList.push(name);
+                    saveStores();
+                    setStore(name);
+                    log(`✨ 新增自訂通路：${name}`);
+                } else {
+                    setStore(name);
+                }
+            }
+        }
 
         function toggleConfigPanel() {
             const content = document.getElementById('configContent');
@@ -869,7 +926,7 @@
         function setStore(val) {
             stopCamera();
             currentStore = val;
-            updateBtnGroup('storeGroup', val);
+            renderStoreGroup();
             updateBanner();
             log(`已切換通路為：${val}`);
         }
@@ -1017,7 +1074,7 @@
 
             html += `
                 <div style="width: 100%; text-align: center; margin-bottom: 8px;">
-                    <span class="badge-channel mycard">MyCard</span>
+                    <span class="badge-channel mycard">${card.channel || 'MyCard'}</span>
                     <span class="denom-tag" style="font-size: 1.3rem;">${card.denom} 點</span>
                 </div>
                 <div class="barcode-group">
@@ -1594,7 +1651,7 @@
                 item.innerHTML = `
                     <div class="card-header">
                         <div>
-                            <span class="badge-channel mycard">${card.channel}</span>
+                            <span class="badge-channel mycard">${card.channel || 'MyCard'}</span>
                             <span class="denom-tag">${card.denom} 點</span>
                             <button class="btn-edit-denom" onclick="editCardDenom(${card.id})">✏️</button>
                             ${card.synced ? '<span class="badge-synced">已同步</span>' : ''}
