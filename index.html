@@ -1249,16 +1249,48 @@
 
         function handleMyCardScanResult(rawData) {
             if (isCoolingDown || isProcessing) return;
-            
+            if (!rawData || typeof rawData !== 'string') return;
+        
             let cardNo = "----", cardPwd = "----";
+        
+            // 1. 解析條碼內容
             if (rawData.includes('|')) {
                 const parts = rawData.split('|').map(p => p.trim());
-                if (parts.length >= 3) { cardNo = parts[1]; cardPwd = parts[2]; }
-                else if (parts.length === 2) { cardNo = parts[0]; cardPwd = parts[1]; }
+                if (parts.length >= 3) { 
+                    cardNo = parts[1]; 
+                    cardPwd = parts[2]; 
+                } else if (parts.length === 2) { 
+                    cardNo = parts[0]; 
+                    cardPwd = parts[1]; 
+                }
             } else {
-                cardNo = rawData; cardPwd = "N/A";
+                cardNo = rawData.trim();
+                cardPwd = "N/A";
             }
-
+        
+            // 2. 驗證卡號與密碼是否有效（阻擋空值、預設符號 ---- 與 N/A）
+            const isValid = cardNo && cardNo !== "----" && cardPwd && cardPwd !== "----" && cardPwd !== "N/A";
+        
+            if (!isValid) {
+                // 設定冷卻，防止同一張無效條碼連續發出警告
+                isCoolingDown = true;
+                
+                // 播放警告音效（若系統內已有定義，無則可保留不影響執行）
+                if (typeof playErrorSound === 'function') playErrorSound();
+        
+                // 寫入日誌與顯示畫面提示
+                if (typeof log === 'function') log(`⚠️ 掃描失敗：條碼格式不完整 [${rawData}]`);
+                if (typeof showToast === 'function') showToast("⚠️ 條碼無效或格式不符，請重新對準");
+        
+                // 1.5 秒後解除冷卻，恢復掃描
+                setTimeout(() => {
+                    isCoolingDown = false;
+                }, 1500);
+        
+                return;
+            }
+        
+            // 3. 驗證通過才寫入資料庫
             commitFullCard(cardNo, cardPwd);
         }
 
