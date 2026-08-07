@@ -1166,7 +1166,7 @@
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = ctx.createOscillator();
-                osc.type = 'sawtooth'; osc.frequency.value = 200;
+                osc.type = 'sawtooth'; osc.frequency.value = 150;
                 osc.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.25);
             } catch (e) {}
         }
@@ -1180,7 +1180,7 @@
                 // 使用鋸齒波（sawtooth）製造較具警示感的粗糙音質
                 osc.type = 'sawtooth'; 
                 // 設定頻率為較低沉的 150 Hz
-                osc.frequency.value = 150; 
+                osc.frequency.value = 100; 
                 osc.connect(ctx.destination); 
                 osc.start(); 
                 // 設定持續時間為 0.15 秒（比重複警報更短促）
